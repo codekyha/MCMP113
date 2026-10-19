@@ -1,0 +1,189 @@
+% =====================================================================
+%  mcmp113notes.sty -- shared preamble for MCMP113 lecture notes (XeLaTeX)
+%  Asst. Prof. Hasan Oguz, PhD -- Istanbul Okan University
+%  Usage:  \documentclass[11pt,a4paper]{article}
+%          \usepackage{mcmp113notes}
+%          \mcmpweek{3}  \mcmptitle{Variables, Data Types and Constants}{subtitle line}
+%          \begin{document} \makemcmptitle ...
+%  Student edition:    xelatex file.tex
+%  Instructor edition: xelatex -jobname=file_Solutions "\def\withsolutions{1}\input{file.tex}"
+% =====================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{mcmp113notes}[2026/09/30 MCMP113 notes style]
+% ---------- solutions switch ----------
+\newif\ifsolutions
+\ifdefined\withsolutions \solutionstrue \else \solutionsfalse \fi
+
+% ---------- fonts ----------
+\usepackage{amsmath,amssymb}
+\usepackage[sc]{mathpazo}
+\usepackage[no-math]{fontspec}
+\setmainfont{texgyrepagella}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\setsansfont{texgyreheros}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}[Scale=0.84]}{\setmonofont{lmmono10-regular.otf}}
+
+% ---------- layout ----------
+\usepackage[a4paper,margin=2.3cm,headheight=14pt]{geometry}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs,tabularx,array,multirow,colortbl}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,shapes.misc,arrows.meta,positioning,calc,fit,decorations.pathreplacing}
+\usepackage{hyperref}
+\usepackage{needspace}
+\renewcommand{\arraystretch}{1.28}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+
+% ---------- colours (same as the slides) ----------
+\definecolor{ink}{HTML}{14213D}
+\definecolor{amber}{HTML}{FCA311}
+\definecolor{amberdk}{HTML}{B7791F}
+\definecolor{mist}{HTML}{EEF1F6}
+\definecolor{slate}{HTML}{5B6478}
+\definecolor{codebg}{HTML}{F4F6FA}
+\definecolor{seqc}{HTML}{14213D}
+\definecolor{selc}{HTML}{2F6FB3}
+\definecolor{repc}{HTML}{2E9E6A}
+\definecolor{errc}{HTML}{C8453B}
+\hypersetup{colorlinks,linkcolor=ink,urlcolor=selc,citecolor=ink,
+  pdftitle={MCMP113 Week 1 Lecture Notes},pdfauthor={Asst. Prof. Hasan Oguz, PhD}}
+
+% ---------- headings ----------
+\titleformat{\section}{\sffamily\Large\bfseries\color{ink}}{\color{amber}\texttt{>\_}\hspace{0.4em}\thesection}{0.6em}{}
+\titleformat{\subsection}{\sffamily\large\bfseries\color{ink}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\sffamily\normalsize\bfseries\color{ink}}{}{0em}{}
+\titlespacing*{\section}{0pt}{1.6em}{0.6em}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.4em}
+
+% ---------- header/footer ----------
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\sffamily\small\color{slate}MCMP113 \textperiodcentered{} Introduction to Basic Algorithms and Programming}
+\fancyhead[R]{\sffamily\small\color{slate}Week 1\ifsolutions{} \textperiodcentered{} \textcolor{errc}{Instructor edition}\fi}
+\fancyfoot[C]{\sffamily\small\color{slate}\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% ---------- boxes ----------
+\newtcolorbox{defbox}[1][]{enhanced,breakable,colback=ink,colframe=ink,coltext=white,
+  fonttitle=\sffamily\bfseries,coltitle=amber,title={#1},arc=2mm,boxrule=0pt,left=3mm,right=3mm,top=2mm,bottom=2mm}
+\newtcolorbox{notebox}[1][Note]{enhanced,breakable,colback=amber!12,colframe=amber!12,
+  fonttitle=\sffamily\bfseries,coltitle=amberdk,title={#1},arc=2mm,boxrule=0pt,left=3mm,right=3mm}
+\newtcolorbox{warnbox}[1][Common mistake]{enhanced,breakable,colback=errc!8,colframe=errc!8,
+  fonttitle=\sffamily\bfseries,coltitle=errc,title={#1},arc=2mm,boxrule=0pt,left=3mm,right=3mm}
+\newtcolorbox{activity}[1][Activity]{enhanced,breakable,colback=mist,colframe=mist,
+  fonttitle=\sffamily\bfseries,coltitle=ink,title={#1},arc=2mm,boxrule=0pt,left=3mm,right=3mm}
+\newtcolorbox{pseudobox}[1][]{enhanced,colback=codebg,colframe=ink!25,
+  fonttitle=\sffamily\small\bfseries,coltitle=ink,colbacktitle=ink!8,title={#1},arc=1.5mm,boxrule=0.4pt,left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{solbox}[1][Solution]{enhanced,breakable,colback=repc!7,colframe=repc!60,
+  fonttitle=\sffamily\bfseries,coltitle=white,colbacktitle=repc,title={#1},arc=1.5mm,boxrule=0.5pt}
+
+% ---------- pseudocode conventions ----------
+\algrenewcommand\algorithmicif{\textbf{IF}}
+\algrenewcommand\algorithmicthen{\textbf{THEN}}
+\algrenewcommand\algorithmicelse{\textbf{ELSE}}
+\algrenewcommand\algorithmicwhile{\textbf{WHILE}}
+\algrenewcommand\algorithmicdo{}
+\algrenewcommand\algorithmicfor{\textbf{FOR}}
+\algrenewcommand\algorithmicend{\textbf{END}}
+\algrenewcommand\algorithmicreturn{\textbf{RETURN}}
+\algrenewcommand\alglinenumber[1]{\footnotesize\color{slate}#1}
+\newcommand{\READ}{\textbf{READ}\ }
+\newcommand{\PRINT}{\textbf{PRINT}\ }
+\newcommand{\START}{\State \textbf{START}}
+\newcommand{\STOP}{\State \textbf{END}}
+\newcommand{\TO}{\ \textbf{TO}\ }
+\newcommand{\AND}{\ \textbf{AND}\ }
+\newcommand{\OR}{\ \textbf{OR}\ }
+\newcommand{\NOT}{\textbf{NOT}\ }
+\newcommand{\MOD}{\mathbin{\mathrm{mod}}}
+\newcommand{\str}[1]{\texttt{"#1"}}
+% explicit END IF / END WHILE / END FOR lines (course convention)
+\algdef{SE}[WHILEX]{WhileX}{EndWhileX}[1]{\algorithmicwhile\ #1}{\textbf{END WHILE}}
+\algdef{SE}[IFX]{IfX}{EndIfX}[1]{\algorithmicif\ #1\ \algorithmicthen}{\textbf{END IF}}
+\algdef{Ce}[ELSEX]{IFX}{ElseX}{EndIfX}{\algorithmicelse}
+\algdef{SE}[FORX]{ForX}{EndForX}[1]{\algorithmicfor\ #1}{\textbf{END FOR}}
+
+% ---------- C# listings ----------
+\lstdefinelanguage{CSharp14}{language=[Sharp]C,
+  morekeywords={var,string,double,int,bool,decimal,if,else,while,for,foreach,return,true,false,using,static,void,new},
+  sensitive=true}
+\lstset{language=CSharp14,basicstyle=\ttfamily\small,keywordstyle=\color{selc}\bfseries,
+  stringstyle=\color{repc!80!black},commentstyle=\color{slate}\itshape,
+  backgroundcolor=\color{codebg},frame=single,rulecolor=\color{ink!25},framesep=4pt,xleftmargin=6pt,xrightmargin=6pt,
+  numbers=left,numberstyle=\scriptsize\color{slate},numbersep=8pt,showstringspaces=false,
+  columns=fullflexible,keepspaces=true,upquote=true,breaklines=true,aboveskip=0.8em,belowskip=0.8em}
+\lstdefinestyle{shell}{language={},numbers=none,basicstyle=\ttfamily\small\color{white},backgroundcolor=\color{ink},rulecolor=\color{ink}}
+
+% ---------- misc ----------
+\newcommand{\kw}[1]{\textsf{\bfseries #1}}
+\newcommand{\term}[1]{\textbf{\color{ink}#1}}
+\newcommand{\solution}[1]{\ifsolutions\begin{solbox}#1\end{solbox}\fi}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcommand{\hdr}[1]{\textcolor{white}{\sffamily\bfseries #1}}
+\newcommand{\hrow}{\rowcolor{ink}}
+\newcommand{\stars}[1]{\textcolor{amberdk}{\ifcase#1\or$\star$\or$\star\star$\or$\star\star\star$\fi}}
+
+\tikzset{
+  fc/.style={draw=ink,line width=0.7pt,align=center,font=\sffamily\small,minimum height=7mm},
+  term/.style={fc,rounded rectangle,fill=amber!18,minimum width=20mm},
+  io/.style={fc,trapezium,trapezium left angle=72,trapezium right angle=108,trapezium stretches=true,fill=white,minimum width=24mm},
+  proc/.style={fc,rectangle,fill=white,minimum width=22mm},
+  dec/.style={fc,diamond,aspect=2,fill=selc!10,inner sep=1pt},
+  arr/.style={-{Stealth[length=2.2mm]},draw=ink,line width=0.7pt},
+}
+
+% =====================================================================
+
+% ---------- week/title macros ----------
+\newcommand{\mcmpweeknum}{1}
+\newcommand{\mcmpweek}[1]{\renewcommand{\mcmpweeknum}{#1}}
+\newcommand{\mcmptitletext}{}
+\newcommand{\mcmpsubtitletext}{}
+\newcommand{\mcmptitle}[2]{\renewcommand{\mcmptitletext}{#1}\renewcommand{\mcmpsubtitletext}{#2}}
+\fancyhead[R]{\sffamily\small\color{slate}Week \mcmpweeknum\ifsolutions{} \textperiodcentered{} \textcolor{errc}{Instructor edition}\fi}
+\hypersetup{pdftitle={MCMP113 Week \mcmpweeknum{} Lecture Notes}}
+\newcommand{\makemcmptitle}{%
+\begin{tcolorbox}[enhanced,colback=ink,colframe=ink,arc=3mm,boxrule=0pt,left=6mm,right=6mm,top=5mm,bottom=5mm]
+\begin{minipage}[c]{0.74\linewidth}
+{\ttfamily\bfseries\color{amber}>\_ MCMP113 \textperiodcentered{} Week \mcmpweeknum}\\[2mm]
+{\sffamily\bfseries\LARGE\color{white}\mcmptitletext}\\[3mm]
+{\sffamily\large\color{white!80!ink}\mcmpsubtitletext}\\[4mm]
+{\sffamily\small\color{white}\textbf{Asst.\ Prof.\ Hasan Oğuz, PhD}\\
+\color{white!75!ink}Introduction to Basic Algorithms and Programming \textperiodcentered{} Istanbul Okan University\\
+Vocational School \textperiodcentered{} 2026--2027 Fall}
+\ifsolutions\\[2mm]{\sffamily\small\bfseries\color{amber}INSTRUCTOR EDITION -- contains solutions}\fi
+\end{minipage}\hfill
+\begin{minipage}[c]{0.22\linewidth}\centering
+\end{minipage}
+\end{tcolorbox}\vspace{2mm}}
+% output box for console program runs
+\newtcolorbox{consolebox}[1][Output]{enhanced,breakable,colback=black!88,colframe=black!88,coltext=green!70!white,
+  fontupper=\ttfamily\small,fonttitle=\sffamily\scriptsize\bfseries,coltitle=white!70!black,title={#1},arc=1.5mm,boxrule=0pt,left=3mm}
+\newcommand{\userin}[1]{\textcolor{amber}{\textbf{#1}}}
+% listings + XeLaTeX: register Turkish letters, em dash and arrow as extended letters
+% (otherwise characters above U+00FF are typeset out of order, e.g. "Ayşe" -> "şAye")
+\makeatletter
+\lst@InputCatcodes
+\def\lst@DefEC{%
+    \lst@CCECUse \lst@ProcessLetter
+      ^^80^^81^^82^^83^^84^^85^^86^^87^^88^^89^^8a^^8b^^8c^^8d^^8e^^8f%
+      ^^90^^91^^92^^93^^94^^95^^96^^97^^98^^99^^9a^^9b^^9c^^9d^^9e^^9f%
+      ^^a0^^a1^^a2^^a3^^a4^^a5^^a6^^a7^^a8^^a9^^aa^^ab^^ac^^ad^^ae^^af%
+      ^^b0^^b1^^b2^^b3^^b4^^b5^^b6^^b7^^b8^^b9^^ba^^bb^^bc^^bd^^be^^bf%
+      ^^c0^^c1^^c2^^c3^^c4^^c5^^c6^^c7^^c8^^c9^^ca^^cb^^cc^^cd^^ce^^cf%
+      ^^d0^^d1^^d2^^d3^^d4^^d5^^d6^^d7^^d8^^d9^^da^^db^^dc^^dd^^de^^df%
+      ^^e0^^e1^^e2^^e3^^e4^^e5^^e6^^e7^^e8^^e9^^ea^^eb^^ec^^ed^^ee^^ef%
+      ^^f0^^f1^^f2^^f3^^f4^^f5^^f6^^f7^^f8^^f9^^fa^^fb^^fc^^fd^^fe^^ff%
+      ^^^^011e^^^^011f^^^^0130^^^^0131^^^^015e^^^^015f^^^^2014^^^^2192%
+      ^^00}
+\lst@RestoreCatcodes
+\makeatother
+\endinput

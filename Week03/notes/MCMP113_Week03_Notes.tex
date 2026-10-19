@@ -1,0 +1,1031 @@
+% =====================================================================
+%  MCMP113 Introduction to Basic Algorithms and Programming
+%  Week 3 Lecture Notes -- Programming Languages, Variables, Data Types, Constants
+%  Asst. Prof. Hasan Oguz, PhD -- Istanbul Okan University
+%  Compile with XeLaTeX (twice).
+%    Student edition   : xelatex MCMP113_Week03_Notes.tex
+%    Instructor edition: xelatex -jobname=MCMP113_Week03_Notes_Solutions "\def\withsolutions{1}\input{MCMP113_Week03_Notes.tex}"
+%  Example listings are read from ../code (tested example projects); exercise solutions are inlined (each was tested as a project).
+%  Solutions that contain listings use \ifsolutions\begin{solbox}...\end{solbox}\fi, because lstlisting cannot sit inside the \solution{} argument.
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage{mcmp113notes}
+\mcmpweek{3}\mcmptitle{Programming Languages, Variables,\\ Data Types and Constants}{From an algorithm to a running C\# program: storing, typing, reading and printing data}
+
+\usepackage{xurl}
+\setlength{\emergencystretch}{3em}
+% console transcripts that keep their spaces; typed input via (*\userin{...}*)
+\lstdefinestyle{out}{language={},numbers=none,basicstyle=\ttfamily\small\color{green!70!white},
+  backgroundcolor={},frame=none,escapeinside={(*}{*)},columns=fixed,keepspaces=true,
+  xleftmargin=0pt,xrightmargin=0pt,aboveskip=0pt,belowskip=0pt,breaklines=true,showstringspaces=false}
+\lstset{aboveskip=0.6em,belowskip=0.6em,basicstyle=\ttfamily\small\linespread{0.94}\selectfont}
+\setlength{\parskip}{0.35em}
+\setcounter{tocdepth}{1}
+\titlespacing*{\section}{0pt}{1.1em}{0.4em}
+\titlespacing*{\subsection}{0pt}{0.8em}{0.3em}
+\renewcommand{\arraystretch}{1.15}
+% listings + XeTeX: characters above U+00FF in lines skipped by firstline/linerange leak into the output;
+% the header lines of every Program.cs contain an em dash, so it is ignored (catcode 9) while a file is read.
+\let\lstinputlistingORIG\lstinputlisting
+\renewcommand{\lstinputlisting}[2][]{{\catcode"2014=9 \lstinputlistingORIG[#1]{#2}}}
+\lstnewenvironment{run}{\lstset{style=out}}{}
+\newcommand{\ex}[2]{\texttt{code/#1}~--~#2}
+
+\begin{document}
+\makemcmptitle
+
+\begin{notebox}[How to use these notes]
+These notes follow the Week~3 slides and contain everything that does not fit on a slide: the full explanation of each idea, every example program with a real console run, trace tables, an English--Turkish glossary and graded exercises. This is the first week with real C\#. \textbf{Type every example yourself} and run it; do not just read it. All example programs are in the folder \texttt{code/} (one project per example, e.g.\ \texttt{03\_07\_Receipt}); the listings below are printed directly from those tested files (without their two header-comment lines), and every console output shown was produced by running them with .NET~10. In console boxes, \userin{amber text} is what the user typed.
+\end{notebox}
+
+{\small\tableofcontents}
+
+% =====================================================================
+\section{Learning outcomes}\label{sec:outcomes}
+After this week you should be able to:
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item explain the difference between machine code, assembly and high-level languages, and between compiling, interpreting and just-in-time (JIT) compilation;
+  \item describe how a C\# program is turned into IL by the compiler and into machine code by the .NET runtime; distinguish the .NET SDK from the runtime;
+  \item create, build and run a console project with \texttt{dotnet new console} and \texttt{dotnet run}, and explain the files \texttt{Program.cs} and \texttt{.csproj};
+  \item print text with \texttt{Console.Write}/\texttt{WriteLine}, escape sequences, verbatim strings, interpolation and format specifiers;
+  \item declare, initialise and assign variables with legal and meaningful names, and trace their values in a table;
+  \item choose a suitable data type (\texttt{int}, \texttt{long}, \texttt{double}, \texttt{decimal}, \texttt{char}, \texttt{string}, \texttt{bool}, \dots) and use \texttt{const} for fixed values;
+  \item read input with \texttt{Console.ReadLine()} and convert it with \texttt{int.Parse}, \texttt{double.Parse} or \texttt{Convert}; recognise truncation, overflow and the decimal-comma trap.
+\end{enumerate}
+
+% =====================================================================
+\section{Programming languages and .NET}\label{sec:languages}
+
+\subsection{Three levels of language}
+A processor (CPU) understands only \term{machine code}: binary instructions, each a few bytes long, specific to one processor family (x86/x64, ARM, \dots). Writing programs as bit patterns is almost impossible for humans, so programmers invented \term{assembly language}, which gives each machine instruction a short name (a \emph{mnemonic}). A program called an \term{assembler} translates it to machine code. \term{High-level languages} such as C, Java, Python and C\# go much further: they look like a mixture of English and mathematics, are independent of the processor, and one line may become many machine instructions.
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{31mm}>{\raggedright\arraybackslash}p{50mm}L}
+\toprule
+\textbf{Level} & \textbf{``Store the number 7''} & \textbf{Characteristics}\\ \midrule
+Machine code (x86) & \texttt{10111000 00000111 00000000 00000000 00000000} (hex \texttt{B8 07 00 00 00}) & What the CPU executes. Unreadable for people, tied to one CPU family.\\
+Assembly & \texttt{mov eax, 7} & One mnemonic per machine instruction; translated by an assembler. Still CPU-specific.\\
+High-level (C\#) & \texttt{int x = 7;} & Readable, portable; translated by a compiler (or interpreter).\\ \bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Compiled, interpreted, or just-in-time?}
+A high-level program must be translated before the CPU can execute it. There are three main strategies:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \term{Compiled ahead of time} (C, C++, Go, Rust): a \term{compiler} translates the whole program into machine code \emph{before} it runs. The result starts and runs fast, but must be rebuilt for every operating system and processor.
+  \item \term{Interpreted} (Python, shell scripts, classic BASIC): an \term{interpreter} reads the program while it runs and executes it statement by statement. Convenient for experimenting, usually slower. (Real systems mix the ideas: CPython first compiles to bytecode and then interprets that bytecode.)
+  \item \term{Intermediate language + JIT} (C\#, VB.NET, Java): the compiler produces an \emph{intermediate language}; when the program runs, a \term{just-in-time (JIT) compiler} inside the runtime translates it into machine code for the actual CPU. The same compiled file runs on Windows, Linux and macOS.
+\end{itemize}
+
+\subsection{How a C\# program runs}
+Figure~\ref{fig:pipeline} shows the path from your source file to the processor. \texttt{dotnet build} runs the C\# compiler (named \emph{Roslyn}); it checks your code and, if there are no errors, writes \term{IL} (Intermediate Language, also called CIL) into a \texttt{.dll} file. \texttt{dotnet run} builds and then starts the program: the \term{CLR} (Common Language Runtime) loads the \texttt{.dll} and its JIT compiler turns the IL into native machine code.
+
+\begin{figure}[h]\centering
+\begin{tikzpicture}[node distance=4mm,
+  st/.style={rounded corners=1.5mm,minimum width=22mm,minimum height=13mm,align=center,font=\sffamily\scriptsize}]
+\node[st,fill=ink,text=white] (a) {\textbf{\color{amber}Program.cs}\\ C\# source};
+\node[st,fill=selc!15,right=of a] (b) {\textbf{C\# compiler}\\ \texttt{dotnet build}};
+\node[st,fill=mist,right=of b] (c) {\textbf{Hello.dll}\\ IL code};
+\node[st,fill=repc!15,right=of c] (d) {\textbf{CLR + JIT}\\ \texttt{dotnet run}};
+\node[st,fill=amber!20,right=of d] (e) {\textbf{Machine code}\\ runs on the CPU};
+\foreach \x/\y in {a/b,b/c,c/d,d/e} \draw[arr,draw=amber] (\x)--(\y);
+\node[below=2mm of b,font=\sffamily\scriptsize\itshape,errc,align=center] {compile time:\\ errors CS0165, CS0029, \dots};
+\node[below=2mm of d,font=\sffamily\scriptsize\itshape,errc,align=center] {run time:\\ FormatException, \dots};
+\end{tikzpicture}
+\caption{From source code to machine code. Compile-time errors stop the build; run-time errors (exceptions) stop a running program.}\label{fig:pipeline}
+\end{figure}
+
+This picture explains two kinds of errors you will meet. \term{Compile-time errors} (codes such as \texttt{CS0165}) are found by the compiler; the program is not built at all. \term{Run-time errors} (\emph{exceptions}, such as \texttt{FormatException}) happen while a correctly compiled program runs, for example when the user types letters where a number is expected.
+
+\begin{defbox}[SDK versus runtime]
+The \textbf{.NET runtime} contains what is needed to \emph{run} a finished program: the CLR with its JIT compiler and the base class library (\texttt{Console}, \texttt{Math}, \dots). The \textbf{.NET SDK} (Software Development Kit) contains the runtime \emph{plus} the compiler, the \texttt{dotnet} command-line tool and project templates. Developers install the SDK; users of your program need only the runtime. In this course we use the .NET~10 SDK (a long-term-support release, November 2025) with C\#~14.
+\end{defbox}
+
+\subsection{Creating and running a project}
+Open a terminal (in VS Code: \emph{Terminal $\triangleright$ New Terminal}) in a folder for the course and type:
+\begin{lstlisting}[style=shell]
+dotnet --version                 # shows e.g. 10.0.112 (any 10.0.x is fine)
+dotnet new console -n Hello      # creates the folder Hello with a project
+cd Hello
+dotnet run                       # builds and runs: prints Hello, World!
+\end{lstlisting}
+\texttt{dotnet new console} creates \texttt{Hello/Program.cs} and \texttt{Hello/Hello.csproj} and prepares (``restores'') the project. \texttt{dotnet run} must be started \emph{inside} the project folder; otherwise you get \emph{Couldn't find a project to run}. In VS Code with the C\# Dev Kit, open the \emph{folder} (\emph{File $\triangleright$ Open Folder}), then use \emph{Run $\triangleright$ Run Without Debugging} (Ctrl+F5). The build puts its output in the folders \texttt{bin/} and \texttt{obj/}; you never edit them and may delete them at any time.
+
+\subsection{The project file and our course template}
+The \texttt{.csproj} file is an XML file that tells the SDK how to build the program. Our course template differs from the default in two lines:
+\begin{lstlisting}[language=XML,numbers=none]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>
+\end{lstlisting}
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item \texttt{OutputType Exe}: build a runnable program; \texttt{net10.0}: target .NET~10; \texttt{ImplicitUsings}: common namespaces such as \texttt{System} are imported automatically, so we can write \texttt{Console} instead of \texttt{System.Console}.
+  \item \texttt{Nullable disable}: the default template has \texttt{enable}. Then the compiler warns about possible \texttt{null} values, e.g.\ \texttt{string name = Console.ReadLine();} gives warning CS8600 and \texttt{int.Parse(Console.ReadLine())} gives CS8604. The warnings are justified in professional code, but confusing in Week~3, so we switch them off.
+  \item \texttt{InvariantGlobalization true}: numbers are read and printed with a decimal \emph{point} on every computer, including Turkish Windows (Section~\ref{sec:culture}).
+\end{itemize}
+To use the template: create the project with \texttt{dotnet new console -n Name} and edit these two lines (or copy the template from the course Telegram group).
+
+\subsection{Top-level statements and the classic \texttt{Main} method}
+Since C\#~9 a program can consist simply of statements written at the top of \texttt{Program.cs} --- \term{top-level statements}. The compiler generates the surrounding class and the \texttt{Main} method for you. Many books and web pages still show the \emph{classic} form, in which execution starts at the first statement of \texttt{static void Main()}, the \term{entry point}. Example~2 is such a program; it behaves exactly like a top-level program. In MCMP113 we write top-level statements.
+\lstinputlisting[firstline=3,caption={\ex{03\_02\_ClassicHello}{the classic template}}]{../code/03_02_ClassicHello/Program.cs}
+\needspace{5.0\baselineskip}
+\begin{consolebox}[Output]
+\begin{run}
+Hello from Main!
+The classic form.
+\end{run}
+\end{consolebox}
+
+\subsection{Statements, semicolons, case and comments}
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item A \term{statement} is one instruction; simple statements end with a semicolon. Forgetting it gives \texttt{error CS1002: ; expected}.
+  \item C\# is \term{case-sensitive}: \texttt{Console} and \texttt{console} are different names (\texttt{console.WriteLine} gives CS0103 \emph{The name 'console' does not exist in the current context}); \texttt{age} and \texttt{Age} are two different variables.
+  \item \term{Comments} are notes for people and are ignored by the compiler: \texttt{//} until the end of the line, \texttt{/* \dots */} for several lines.
+  \item \term{Whitespace} (spaces, tabs, line breaks) between words and symbols is ignored, but indent consistently with 4 spaces so that the structure is visible. In VS Code, Shift+Alt+F formats the whole file.
+  \item Braces \texttt{\{ \}} group statements into a \emph{block} (you will use them from Week~5 on). We put each brace on its own line (Allman style, the C\# default).
+\end{itemize}
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Output}\label{sec:output}
+
+\subsection{\texttt{Write} and \texttt{WriteLine}}
+\texttt{Console.WriteLine(x)} prints \texttt{x} and then moves the cursor to the next line; \texttt{Console.Write(x)} leaves the cursor directly after the text. We therefore use \texttt{Write} for prompts, so the user types on the same line. \texttt{Console.WriteLine();} with nothing in the parentheses prints an empty line.
+
+\subsection{Escape sequences and verbatim strings}
+Inside a string literal the backslash starts an \term{escape sequence}:
+\begin{center}\small
+\begin{tabular}{>{\ttfamily}l l >{\ttfamily}l >{\ttfamily}l}
+\toprule
+\normalfont\textbf{Escape} & \textbf{Meaning} & \normalfont\textbf{In code} & \normalfont\textbf{Printed}\\ \midrule
+\textbackslash n & new line & "Line 1\textbackslash nLine 2" & Line 1 \normalfont(new line)\ttfamily\ Line 2\\
+\textbackslash t & tab (next multiple of 8 columns) & "Name:\textbackslash tAyşe" & Name:\ \ \ Ayşe\\
+\textbackslash " & double quote & "Say \textbackslash "hi\textbackslash "" & Say "hi"\\
+\textbackslash\textbackslash & backslash & "C:\textbackslash\textbackslash MCMP113" & C:\textbackslash MCMP113\\
+\textbackslash ' & single quote (in a \texttt{char}) & '\textbackslash '' & '\\ \bottomrule
+\end{tabular}
+\end{center}
+A \term{verbatim string} starts with \texttt{@} and treats the backslash as an ordinary character: \texttt{@"C:\textbackslash MCMP113"}. This is convenient for Windows paths. Without \texttt{@}, \texttt{"C:\textbackslash Temp\textbackslash new"} does not compile (\texttt{CS1009: Unrecognized escape sequence}, because \texttt{\textbackslash T} is not an escape) --- and \texttt{\textbackslash n} would silently become a line break.
+
+\subsection{Example 1: a personal student card}
+\lstinputlisting[firstline=3,caption={\ex{03\_01\_HelloCard}{Write vs WriteLine and escape sequences}}]{../code/03_01_HelloCard/Program.cs}
+\begin{consolebox}[Sample run]
+\begin{run}
+Hello, Okan!
+Enter your name: (*\userin{Ayşe Yılmaz}*)
+Enter your programme: (*\userin{Computer Programming}*)
+
+===== STUDENT CARD =====
+Name:   Ayşe Yılmaz
+Prog.:  Computer Programming
+Motto:  "Code, test, repeat."
+Folder: C:\MCMP113\Week03
+Same:   C:\MCMP113\Week03
+Line 1
+Line 2
+\end{run}
+\end{consolebox}
+The program stops at each \texttt{ReadLine} until the user presses Enter. The typed text is shown by the terminal, not printed by the program. If Turkish letters appear as \texttt{?} on your console, add \texttt{Console.OutputEncoding = System.Text.Encoding.UTF8;} as the first statement.
+
+\subsection{String interpolation}
+A string that starts with \texttt{\$} may contain expressions in braces: \texttt{\$"Name: \{name\}"} inserts the value of \texttt{name}. The older alternative is concatenation with \texttt{+} (\texttt{"Name: " + name}); interpolation is easier to read. Format specifiers inside the braces are described in Section~\ref{sec:format}.
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Identifiers and variables}\label{sec:variables}
+
+\subsection{Naming rules}
+Names of variables, constants, methods and classes are called \term{identifiers}. The compiler enforces these rules:
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item letters, digits and the underscore \texttt{\_} only (no spaces, no \texttt{-}, \texttt{\%}, \texttt{.}, \dots);
+  \item the first character must not be a digit;
+  \item a name must not be a \term{reserved keyword} such as \texttt{int}, \texttt{double}, \texttt{class}, \texttt{if}, \texttt{for}, \texttt{while}, \texttt{string}, \texttt{const}, \texttt{new}, \texttt{return};
+  \item upper and lower case are different (\texttt{total} $\ne$ \texttt{Total}).
+\end{enumerate}
+\begin{center}\small
+\begin{tabular}{>{\ttfamily}l c l}
+\toprule
+\normalfont\textbf{Name} & \textbf{Legal?} & \textbf{Reason}\\ \midrule
+studentName & \textcolor{repc}{yes} & letters only (camelCase)\\
+total2 & \textcolor{repc}{yes} & digits are allowed after the first character\\
+\_count & \textcolor{repc}{yes} & underscore allowed, also at the start\\
+2ndPlace & \textcolor{errc}{no} & starts with a digit\\
+first name & \textcolor{errc}{no} & contains a space\\
+price-tl & \textcolor{errc}{no} & \texttt{-} is the minus operator\\
+class & \textcolor{errc}{no} & reserved keyword\\
+öğrenciAdı & \textcolor{amberdk}{yes} & Unicode letters are legal, but we use English names\\ \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Naming conventions}
+Conventions are not checked by the compiler but followed by professional C\# programmers (Microsoft's coding conventions): \term{camelCase} for local variables (\texttt{examGrade}, \texttt{unitPrice}), \term{PascalCase} for constants, methods and types (\texttt{VatRate}, \texttt{WriteLine}, \texttt{Console}). Above all, a name should say \emph{what the variable stores}: \texttt{examGrade} rather than \texttt{x}, \texttt{studentCount} rather than \texttt{n}.
+
+\subsection{Variables: a named box in memory}
+\begin{defbox}[Definition -- Variable]
+A \textbf{variable} is a named storage location in memory. It has a \textbf{name}, a \textbf{type} (which values fit into it and how many bytes it occupies) and a \textbf{value}, which can change while the program runs.
+\end{defbox}
+\begin{lstlisting}[numbers=none]
+int age;            // declaration: create the box
+age = 19;           // assignment: store a value in it
+int year = 2026;    // declaration + initialisation in one step
+age = age + 1;      // read the old value, add 1, store the result back
+\end{lstlisting}
+The \texttt{=} sign is the \term{assignment operator}: evaluate the right-hand side, then store the result in the variable on the left (pseudocode $age \gets age + 1$). It is \emph{not} a mathematical equation: $age = age + 1$ has no solution in mathematics, but in C\# it simply increases \texttt{age}. Comparison for equality uses \texttt{==} (Weeks~4--5). The old value of a variable is lost when a new value is assigned.
+
+\begin{figure}[h]\centering
+\begin{tikzpicture}[box/.style={draw=amberdk,line width=0.9pt,fill=amber!15,minimum width=25mm,minimum height=10mm,font=\ttfamily\large\bfseries}]
+\foreach \n/\t/\v/\x in {age/int/20/0, year/int/2026/3.2, height/double/1.75/6.4, name/string/"Ayşe"/9.6}{
+  \node[box] (b\n) at (\x,0) {\v};
+  \node[above=1mm of b\n,font=\ttfamily\bfseries,ink] {\n};
+  \node[below=0.5mm of b\n.south east,anchor=north east,font=\ttfamily\scriptsize,selc] {\t};
+}
+\end{tikzpicture}
+\caption{Four variables after the statements above (plus two more): name above the box, value inside, type below.}\label{fig:boxes}
+\end{figure}
+
+\subsection{Trace tables}
+A \term{trace table} records the value of every variable after each statement --- exactly as the computer executes them, top to bottom. Trace the four statements above and then this program:
+\begin{center}
+\begin{minipage}[c]{0.46\linewidth}
+\begin{lstlisting}
+int x = 5;
+int y = x * 2;
+x = x + 3;
+y = y - x;
+Console.WriteLine($"x = {x}, y = {y}");
+\end{lstlisting}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.46\linewidth}\centering\small
+\begin{tabular}{cccl}
+\toprule
+Line & \texttt{x} & \texttt{y} & Output\\ \midrule
+1 & 5 & -- & \\ 2 & 5 & 10 & \\ 3 & 8 & 10 & \\ 4 & 8 & 2 & \\ 5 & 8 & 2 & \texttt{x = 8, y = 2}\\ \bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+\subsection{Using a variable before it has a value}
+C\# refuses to read a local variable that has not \emph{definitely} been given a value:
+\begin{lstlisting}[numbers=none]
+int total;
+Console.WriteLine(total);   // error CS0165: Use of unassigned local variable 'total'
+\end{lstlisting}
+Fix: initialise it, \texttt{int total = 0;}. (Some older languages would silently use whatever happened to be in memory.) Declaring the same name twice in one scope is also an error: \texttt{int x = 5; int x = 6;} gives CS0128. To change the value, write \texttt{x = 6;} without the type.
+
+\subsection{Example 8: swapping two variables}
+Swapping two values is a classic exercise. The obvious attempt \texttt{a = b; b = a;} fails: after \texttt{a = b} both variables contain the value of \texttt{b} and the old value of \texttt{a} is lost. As with two full glasses, we need a third, empty one.
+\lstinputlisting[firstline=3,caption={\ex{03\_08\_SwapVariables}{swap with a temporary variable}}]{../code/03_08_SwapVariables/Program.cs}
+\begin{center}
+\begin{minipage}[c]{0.45\linewidth}
+\begin{consolebox}[Sample run]
+\begin{run}
+a = (*\userin{5}*)
+b = (*\userin{9}*)
+Before: a = 5, b = 9
+After : a = 9, b = 5
+\end{run}
+\end{consolebox}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.5\linewidth}\centering\small
+\begin{tabular}{>{\ttfamily}lccc}
+\toprule
+\normalfont Statement & \texttt{a} & \texttt{b} & \texttt{temp}\\ \midrule
+\normalfont(input) & 5 & 9 & --\\
+int temp = a; & 5 & 9 & 5\\
+a = b; & 9 & 9 & 5\\
+b = temp; & 9 & 5 & 5\\ \bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Data types}\label{sec:types}
+
+\subsection{The built-in types}
+Every variable has a \term{data type}. The type determines which values can be stored, how much memory is used and which operations are allowed. The table lists the types we use; sizes and ranges were printed by Example~10 below.
+\begin{center}\small
+\begin{tabularx}{\linewidth}{>{\ttfamily\bfseries}l c >{\raggedright\arraybackslash}p{52mm} >{\ttfamily}l L}
+\toprule
+\normalfont\textbf{Type} & \textbf{Bytes} & \textbf{Range / precision} & \normalfont\textbf{Literal} & \textbf{Typical use}\\ \midrule
+byte & 1 & $0 \dots 255$ & 200 & small counts, raw data\\
+short & 2 & $-32\,768 \dots 32\,767$ & 30000 & rarely needed\\
+int & 4 & $-2\,147\,483\,648 \dots 2\,147\,483\,647$ & 42 & \textbf{default whole number}\\
+long & 8 & $\approx \pm 9.2\times10^{18}$ & 42L & very large whole numbers\\
+float & 4 & $\approx \pm 3.4\times10^{38}$, 6--9 significant digits & 3.14f & graphics, sensors\\
+double & 8 & $\approx \pm 1.7\times10^{308}$, 15--17 significant digits & 3.14 & \textbf{default real number}\\
+decimal & 16 & $\approx \pm 7.9\times10^{28}$, 28--29 significant digits & 19.99m & \textbf{money}\\
+char & 2 & one UTF-16 character, U+0000 \dots U+FFFF & 'A' & a letter, a grade\\
+bool & 1 & \texttt{true} or \texttt{false} & true & yes/no, passed?\\
+string & varies & any text (a sequence of \texttt{char}) & "Ayşe" & names, IDs, phone numbers\\ \bottomrule
+\end{tabularx}
+\end{center}
+
+\paragraph{Literals and suffixes.} A whole-number literal such as \texttt{42} has type \texttt{int}; a literal with a decimal point or exponent such as \texttt{3.14} or \texttt{2.5e3} ($=2500$) has type \texttt{double}. For other types add a suffix: \texttt{L} for \texttt{long}, \texttt{f} for \texttt{float}, \texttt{m} for \texttt{decimal}. Without the suffix, \texttt{float f = 3.14;} and \texttt{decimal price = 19.99;} do not compile (CS0664: \emph{Literal of type double cannot be implicitly converted to type 'decimal'; use an 'M' suffix}). For \texttt{byte} and \texttt{short} the constant is simply checked: \texttt{byte b = 200;} is fine, \texttt{byte b = 256;} gives CS0031. Long numbers may be grouped with underscores: \texttt{1\_000\_000}.
+
+\paragraph{\texttt{char}, \texttt{string} and \texttt{bool}.} A \texttt{char} literal uses single quotes (\texttt{'A'}), a \texttt{string} literal double quotes (\texttt{"A"}). Internally a \texttt{char} is a number (\texttt{'A'} is 65). A \texttt{bool} holds the result of a yes/no question and becomes important with decisions in Week~5. \texttt{string} is different from the other types in the table: it is a \emph{reference type} whose size depends on the length of the text.
+
+\subsection{Real numbers: \texttt{float}, \texttt{double} or \texttt{decimal}?}
+\texttt{float} and \texttt{double} store numbers in \emph{binary}. Most decimal fractions, such as $0.1$, have no exact binary representation (just as $1/3 = 0.333\ldots$ has none in decimal), so tiny rounding errors appear. \texttt{decimal} stores numbers in base~10 and represents amounts such as $0.1$ or $19.99$ exactly --- that is why money is stored in \texttt{decimal}. Real output (.NET~10):
+\begin{center}
+\begin{minipage}[c]{0.56\linewidth}
+\begin{lstlisting}[numbers=none]
+Console.WriteLine(0.1 + 0.2);    // double
+Console.WriteLine(0.1f + 0.2f);  // float
+Console.WriteLine(0.1m + 0.2m);  // decimal
+Console.WriteLine(1.0 / 3);
+Console.WriteLine(1.0f / 3);
+Console.WriteLine(1.0m / 3);
+\end{lstlisting}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.4\linewidth}
+\begin{consolebox}[Output]
+\begin{run}
+0.30000000000000004
+0.3
+0.3
+0.3333333333333333
+0.33333334
+0.3333333333333333333333333333
+\end{run}
+\end{consolebox}
+\end{minipage}
+\end{center}
+The \texttt{float} sum prints \texttt{0.3} only because \texttt{float} shows fewer digits; its value is not exact either. The last three lines show the number of significant digits kept: about 7 for \texttt{float}, 16 for \texttt{double}, 28 for \texttt{decimal}. \texttt{decimal} is slower and has a much smaller range than \texttt{double}, so for measurements, science and engineering we use \texttt{double}.
+
+\subsection{Choosing a type}
+Use \texttt{int} for whole numbers such as counts, ages and exam points (even when \texttt{byte} would suffice, \texttt{int} is the default); \texttt{long} when values can exceed $\approx 2.1$ billion (world population $\approx 8.2$ billion); \texttt{double} for measured quantities (temperature, height, distance); \texttt{decimal} for money; \texttt{bool} for yes/no facts (``passed?''); \texttt{char} for a single character (\texttt{'B'}); and \texttt{string} for names, T.C.\ Kimlik numbers and phone numbers --- we never calculate with them, a phone number may start with 0 or contain \texttt{+}, and an 11-digit T.C.\ number would not even fit in an \texttt{int}.
+\begin{notebox}[Rule of thumb]
+If you never do arithmetic with it, it is not a number: store identifiers, codes and phone numbers as \texttt{string}.
+\end{notebox}
+
+\subsection{Example 10: asking C\# for the limits; \texttt{var}}
+\texttt{sizeof(T)} gives the size of a type in bytes; \texttt{T.MinValue} and \texttt{T.MaxValue} give its range. The second part of the program uses \texttt{var}: the compiler \emph{infers} the type from the value on the right-hand side. The variable is still strongly typed --- \texttt{var a = 42;} makes \texttt{a} an \texttt{int} forever --- and it must be initialised (\texttt{var x;} gives CS0818). \texttt{GetType().Name} prints the .NET name of the type (\texttt{Int32} = \texttt{int}, \texttt{Int64} = \texttt{long}, \texttt{Single} = \texttt{float}, \texttt{Double} = \texttt{double}, \texttt{Decimal} = \texttt{decimal}). While learning, write the type explicitly; \texttt{var} is fine when the type is obvious.
+\lstinputlisting[linerange={3-6,11-24},caption={\ex{03\_10\_TypeLimits}{sizes and ranges; var (lines 7--10, the same pattern for long, float, double and decimal, are omitted)}}]{../code/03_10_TypeLimits/Program.cs}
+\needspace{12\baselineskip}
+\begin{consolebox}[Output]
+\begin{run}
+type     bytes  MinValue                        MaxValue
+byte         1  0                               255
+short        2  -32768                          32767
+int          4  -2147483648                     2147483647
+long         8  -9223372036854775808            9223372036854775807
+float        4  -3.4028235E+38                  3.4028235E+38
+double       8  -1.7976931348623157E+308        1.7976931348623157E+308
+decimal     16  -79228162514264337593543950335  79228162514264337593543950335
+char         2  0                               65535
+bool         1  False                           True
+
+42 -> Int32, 42L -> Int64, 4.2 -> Double
+4.2f -> Single, 4.2m -> Decimal, 'x' -> Char, "x" -> String
+\end{run}
+\end{consolebox}
+Note the notation \texttt{3.4028235E+38}: \texttt{E+38} means $\times 10^{38}$.
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Constants}\label{sec:constants}
+A \term{constant} is a named value that can never change. It is declared with \texttt{const} and must be initialised in the declaration:
+\begin{lstlisting}[numbers=none]
+const double Pi = 3.14159;
+const decimal VatRate = 0.20m;
+Pi = 3.0;     // error CS0131: The left-hand side of an assignment must be a variable, ...
+\end{lstlisting}
+Why use constants? (1) The name documents the meaning --- \texttt{VatRate} is clearer than a ``magic number'' \texttt{0.20m} in a formula; (2) if the value changes (a new VAT rate), you change one line; (3) the compiler prevents accidental changes. Constants are named in PascalCase. .NET already provides important mathematical constants, e.g.\ \texttt{Math.PI} $= 3.141592653589793$.
+
+\subsection{Example 3: circle area and circumference}
+For a circle of radius $r$: area $A = \pi r^2$, circumference $C = 2\pi r$.
+\lstinputlisting[firstline=3,caption={\ex{03\_03\_CircleArea}{const and Math.PI}}]{../code/03_03_CircleArea/Program.cs}
+\needspace{6.6\baselineskip}
+\begin{consolebox}[Sample run]
+\begin{run}
+Radius (cm): (*\userin{2.5}*)
+Area          : 19.6349 cm²
+Circumference : 15.7080 cm
+Area (Math.PI): 19.6350 cm²
+\end{run}
+\end{consolebox}
+Check: $\pi \cdot 2.5^2 = 19.63495\ldots$; with $3.14159$ we get $19.6349375$, so the fourth decimal differs. Use \texttt{Math.PI} in real programs.
+
+\subsection{Example 7: a receipt with \texttt{decimal} and KDV}
+\textbf{Problem.} Read a product name, its net unit price and a quantity; print a receipt with subtotal, KDV (value-added tax, 20\,\%) and total.
+
+\begin{center}
+\begin{minipage}[c]{0.47\linewidth}
+\textbf{IPO table}\\[1mm]\small
+\begin{tabular}{@{}ll@{}}
+Input & \texttt{product}, \texttt{unitPrice}, \texttt{quantity}\\
+Process & subtotal, VAT, total\\
+Output & aligned receipt
+\end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.49\linewidth}
+\begin{pseudobox}[Algorithm -- Receipt]
+\begin{algorithmic}[1]
+\START
+\State \READ $product$, $unitPrice$, $quantity$
+\State $subtotal \gets unitPrice \times quantity$
+\State $vat \gets subtotal \times 0.20$
+\State $total \gets subtotal + vat$
+\State \PRINT $subtotal$, $vat$, $total$
+\STOP
+\end{algorithmic}
+\end{pseudobox}
+\end{minipage}
+\end{center}
+\lstinputlisting[firstline=3,caption={\ex{03\_07\_Receipt}{decimal, const and aligned output}}]{../code/03_07_Receipt/Program.cs}
+\needspace{9.8\baselineskip}
+\begin{consolebox}[Sample run]
+\begin{run}
+Product name        : (*\userin{Notebook}*)
+Unit price (TL, net): (*\userin{24.90}*)
+Quantity            : (*\userin{3}*)
+--------------------------------
+Notebook       3 x    24.90
+Subtotal                74.70 TL
+KDV 20%                 14.94 TL
+TOTAL                   89.64 TL
+\end{run}
+\end{consolebox}
+Check by hand: $24.90 \times 3 = 74.70$; $74.70 \times 0.20 = 14.94$; $74.70 + 14.94 = 89.64$. The \texttt{int quantity} is converted to \texttt{decimal} automatically in \texttt{unitPrice * quantity}. (In Turkish shops, prices usually \emph{include} KDV; here the price is net, so KDV is added.)
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Input and type conversion}\label{sec:input}
+
+\subsection{\texttt{Console.ReadLine()} returns a string}
+Whatever the user types --- even \texttt{19} --- arrives as \emph{text}. \texttt{int age = Console.ReadLine();} does not compile (CS0029: \emph{Cannot implicitly convert type 'string' to 'int'}). To calculate, the text must be \term{parsed} into a number:
+\begin{center}
+\texttt{"19"} (string) \quad$\xrightarrow{\ \texttt{int.Parse}\ }$\quad \texttt{19} (int)
+\end{center}
+\lstinputlisting[firstline=3,caption={\ex{03\_12\_InputParsing}{ReadLine, Parse, Convert and a preview of TryParse}}]{../code/03_12_InputParsing/Program.cs}
+\needspace{10.6\baselineskip}
+\begin{consolebox}[Sample run]
+\begin{run}
+Your age: (*\userin{19}*)
+Text   + 1 = 191
+Number + 1 = 20
+Height in m (e.g. 1.75): (*\userin{1.75}*)
+Height in cm: 175
+Credits this term: (*\userin{30}*)
+Credits: 30
+Lucky number: (*\userin{7}*)
+Success: True, value: 7
+\end{run}
+\end{consolebox}
+Line 7 shows a classic surprise: \texttt{ageText + 1} is \texttt{"191"}, because \texttt{+} with a string \emph{joins} text (\term{concatenation}). With the number \texttt{age} it adds.
+
+\subsection{\texttt{Parse}, \texttt{Convert} and \texttt{TryParse}}
+\begin{center}\small
+\begin{tabular}{>{\ttfamily}l >{\ttfamily}l >{\ttfamily}l >{\ttfamily}l}
+\toprule
+\normalfont\textbf{Text} & \normalfont\textbf{int.Parse(text)} & \normalfont\textbf{Convert.ToInt32(text)} & \normalfont\textbf{int.TryParse(text, out int n)}\\ \midrule
+"42" & 42 & 42 & true, n = 42\\
+" 42 " & 42 & 42 & true, n = 42\\
+"3.5" & \textcolor{errc}{FormatException} & \textcolor{errc}{FormatException} & false, n = 0\\
+"abc", "" & \textcolor{errc}{FormatException} & \textcolor{errc}{FormatException} & false, n = 0\\
+"99999999999" & \textcolor{errc}{OverflowException} & \textcolor{errc}{OverflowException} & false, n = 0\\
+null & \textcolor{errc}{ArgumentNullException} & 0 & false, n = 0\\ \bottomrule
+\end{tabular}
+\end{center}
+\texttt{double.Parse}, \texttt{decimal.Parse} and \texttt{long.Parse} work in the same way. An \emph{exception} that is not handled stops the program. For example, typing \texttt{nineteen} in Example~12 gives (stack trace abridged):
+\needspace{6.6\baselineskip}
+\begin{consolebox}[Crash]
+\begin{run}
+Your age: (*\userin{nineteen}*)
+Unhandled exception. System.FormatException: The input string 'nineteen' was not in a correct format.
+   at System.Int32.Parse(String s)
+   at Program.<Main>$(String[] args) in ...\03_12_InputParsing\Program.cs:line 5
+\end{run}
+\end{consolebox}
+\texttt{TryParse} never crashes: it returns \texttt{true} or \texttt{false} and delivers the number through an \texttt{out} variable (0 if the conversion failed). With the input \texttt{seven} for the last question, Example~12 prints \texttt{Success: False, value: 0}. We will combine \texttt{TryParse} with \texttt{if} in Week~5.
+
+\subsection{Culture: decimal point or decimal comma?}\label{sec:culture}
+In Turkey the decimal separator is a comma ($72{,}5$) and the thousands separator is a point ($1.234.567$). \texttt{double.Parse} uses the computer's \term{culture} (regional settings) unless told otherwise. We tested both situations with .NET~10:
+\begin{center}\small
+\begin{tabular}{>{\ttfamily}l l l}
+\toprule
+\normalfont\textbf{Typed} & \textbf{Turkish PC, default project} & \textbf{Our template (invariant culture)}\\ \midrule
+72.5 & \textcolor{errc}{725 --- silently wrong} & \textcolor{repc}{72.5}\\
+72,5 & \textcolor{repc}{72.5} & \textcolor{errc}{725 --- silently wrong}\\
+\normalfont printing 72.5 & \texttt{72,5} & \texttt{72.5}\\ \bottomrule
+\end{tabular}
+\end{center}
+The wrong separator is interpreted as a \emph{thousands} separator, so there is \emph{no error message} --- the program just calculates with a number 10 times too large. Real run of Example~6 with a comma:
+\needspace{5.8\baselineskip}
+\begin{consolebox}[Sample run -- wrong input]
+\begin{run}
+Weight (kg): (*\userin{72,5}*)
+Height (m) : (*\userin{1.78}*)
+BMI = 228.8 kg/m²
+\end{run}
+\end{consolebox}
+\begin{warnbox}[Course rule]
+Our template sets \texttt{InvariantGlobalization=true}, so every computer uses the decimal \textbf{point}. Always type \texttt{72.5}, \texttt{1.78}, \texttt{24.90}. In a project without our template, you can fix one conversion explicitly with \texttt{using System.Globalization;} and \texttt{double.Parse(text, CultureInfo.InvariantCulture)}.
+\end{warnbox}
+
+\subsection{Example 6: Body Mass Index}
+$\mathrm{BMI} = \dfrac{\text{weight}}{\text{height}^2}$ with weight in kg and height in m.
+\begin{center}
+\begin{minipage}[c]{0.34\linewidth}\centering
+\begin{tikzpicture}[node distance=5mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read weight, height};
+\node[proc,below=of r,align=center] (p) {$bmi \gets weight \,/$\\$(height \times height)$};
+\node[io,below=of p] (o) {Print bmi};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr] (r)--(p); \draw[arr] (p)--(o); \draw[arr] (o)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.62\linewidth}
+\lstinputlisting[firstline=3,caption={\ex{03\_06\_Bmi}{a sequence program}}]{../code/03_06_Bmi/Program.cs}
+\end{minipage}
+\end{center}
+\needspace{5.8\baselineskip}
+\begin{consolebox}[Sample run]
+\begin{run}
+Weight (kg): (*\userin{72.5}*)
+Height (m) : (*\userin{1.78}*)
+BMI = 22.9 kg/m²
+\end{run}
+\end{consolebox}
+Check: $1.78^2 = 3.1684$ and $72.5 / 3.1684 = 22.88\ldots$, printed with one decimal as $22.9$. The parentheses are essential: \texttt{weight / height * height} divides and then multiplies again, giving back $72.5$. The BMI categories need decisions (Week~5).
+
+\subsection{Example 5: Celsius to Fahrenheit}
+$F = \frac{9}{5}C + 32$ --- exercise F of Week~1, now in C\#.
+\lstinputlisting[firstline=3,caption={\ex{03\_05\_CelsiusToFahrenheit}{a formula with double}}]{../code/03_05_CelsiusToFahrenheit/Program.cs}
+\needspace{8.2\baselineskip}
+\begin{consolebox}[Three runs]
+\begin{run}
+Temperature in °C: (*\userin{36.6}*)
+36.6 °C = 97.9 °F
+Temperature in °C: (*\userin{100}*)
+100 °C = 212.0 °F
+Temperature in °C: (*\userin{-40}*)
+-40 °C = -40.0 °F
+\end{run}
+\end{consolebox}
+The test values follow the Week~1 advice: a normal value ($36.6 \to 97.88$), a known value ($100 \to 212$) and a special point ($-40$, where both scales agree).
+\begin{warnbox}[Integer division]
+\texttt{9 / 5} with two \texttt{int} literals is \emph{integer division} and gives \texttt{1}, not \texttt{1.8}. Therefore \texttt{9 / 5 * c + 32} computes \texttt{c + 32}; for \texttt{c = 20} it prints \texttt{52} instead of \texttt{68} (verified). Our program avoids the problem because the expression is evaluated from left to right and \texttt{celsius * 9} is already a \texttt{double}. The safest style is \texttt{9.0 / 5}. Week~4 covers division in detail.
+\end{warnbox}
+
+\subsection{Example 4: rectangle}
+\lstinputlisting[firstline=3,caption={\ex{03\_04\_Rectangle}{input -- process -- output}}]{../code/03_04_Rectangle/Program.cs}
+\needspace{6.6\baselineskip}
+\begin{consolebox}[Sample run]
+\begin{run}
+Width  (m): (*\userin{4.5}*)
+Height (m): (*\userin{3}*)
+Area      = 13.5 m²
+Perimeter = 15 m
+\end{run}
+\end{consolebox}
+Without a format specifier a \texttt{double} is printed with as many digits as needed: \texttt{15}, not \texttt{15.0}.
+
+\subsection{Implicit and explicit conversions}
+C\# converts a value \emph{implicitly} (automatically) when the target type can hold every value of the source type --- a \term{widening} conversion:
+\begin{center}
+\begin{tikzpicture}[t/.style={draw=ink,rounded corners=1mm,fill=mist,font=\ttfamily\small,minimum width=13mm,minimum height=6mm}]
+\node[t] (a) {byte}; \node[t,right=5mm of a] (b) {short}; \node[t,right=5mm of b,fill=selc!12] (c) {int};
+\node[t,right=5mm of c] (d) {long}; \node[t,right=5mm of d] (e) {float}; \node[t,right=5mm of e,fill=selc!12] (f) {double};
+\node[t,below=5mm of d] (g) {decimal};
+\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f} \draw[arr,draw=repc] (\x)--(\y);
+\draw[arr,draw=repc] (c.south) |- (g.west); \draw[arr,draw=repc] (d)--(g);
+\end{tikzpicture}
+\end{center}
+Conversions in the opposite direction may lose information and need an explicit \term{cast} \texttt{(type)value}; without it the compiler reports CS0266 (\emph{Cannot implicitly convert type 'double' to 'int'. An explicit conversion exists (are you missing a cast?)}). Between \texttt{decimal} and \texttt{float}/\texttt{double} a cast is needed in both directions. Note that \texttt{int}$\to$\texttt{float} and \texttt{long}$\to$\texttt{float}/\texttt{double} are implicit but may lose digits of very large numbers: the \texttt{int} $123\,456\,789$ becomes the \texttt{float} $123\,456\,792$.
+
+\lstinputlisting[firstline=3,caption={\ex{03\_11\_CastDemo}{implicit and explicit conversions}}]{../code/03_11_CastDemo/Program.cs}
+\needspace{9.0\baselineskip}
+\begin{consolebox}[Output]
+\begin{run}
+int 7 -> long 7 -> double 7
+(int)3.99 = 3
+Convert.ToInt32(3.99) = 4
+(int)-3.99 = -3
+double 0.3333333333333333 -> float 0.33333334
+(byte)300 = 44
+2147483647 + 1 = -2147483648
+\end{run}
+\end{consolebox}
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item A cast to an integer type \term{truncates} towards zero: $(int)3.99 = 3$ and $(int)(-3.99) = -3$.
+  \item \texttt{Convert.ToInt32} \emph{rounds}. At exactly $.5$ it rounds to the even neighbour: $6.5 \to 6$ but $7.5 \to 8$ (``banker's rounding'', discussed in Week~4).
+  \item \texttt{(byte)300}: a \texttt{byte} keeps only the lowest 8 bits, $300 - 256 = 44$.
+  \item \texttt{int.MaxValue + 1} \emph{wraps around} to \texttt{int.MinValue} --- see the next subsection.
+\end{itemize}
+
+\subsection{Overflow and \texttt{checked}}
+An \texttt{int} has 32 bits and cannot represent values above $2^{31}-1 = 2\,147\,483\,647$. By default C\# does not report an overflow at run time; the result wraps around like a car's odometer. In Example~13, $2\,000\,000\,000 + 500\,000\,000 = 2\,500\,000\,000$, which exceeds \texttt{int.MaxValue}; the stored result is $2\,500\,000\,000 - 2^{32} = 2\,500\,000\,000 - 4\,294\,967\,296 = -1\,794\,967\,296$. There are three remedies: use a larger type (\texttt{long}), wrap the expression in \texttt{checked(\dots)} so that an \texttt{OverflowException} stops the program instead of producing garbage, or check the input.
+\lstinputlisting[firstline=3,caption={\ex{03\_13\_OverflowChecked}{silent overflow vs.\ checked}}]{../code/03_13_OverflowChecked/Program.cs}
+\begin{center}
+\begin{minipage}[t]{0.34\linewidth}
+\begin{consolebox}[Run 1]
+\begin{run}
+Start value: (*\userin{100}*)
+Add        : (*\userin{23}*)
+int     : 123
+long    : 123
+checked : 123
+\end{run}
+\end{consolebox}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.63\linewidth}
+\begin{consolebox}[Run 2 (stack trace abridged)]
+\begin{run}
+Start value: (*\userin{2000000000}*)
+Add        : (*\userin{500000000}*)
+int     : -1794967296
+long    : 2500000000
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+\end{run}
+\end{consolebox}
+\end{minipage}
+\end{center}
+With constants, the compiler detects overflow already: \texttt{int big = int.MaxValue + 1;} gives CS0220 \emph{The operation overflows at compile time in checked mode}.
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Formatted output}\label{sec:format}
+Inside an interpolated string, \texttt{\{value:format\}} chooses a \term{format specifier} and \texttt{\{value,width\}} a field width (positive = right-aligned, negative = left-aligned). Both can be combined: \texttt{\{subtotal,10:F2\}}. All results below were printed with our (invariant) template:
+\begin{center}\small
+\begin{tabular}{>{\ttfamily}l >{\ttfamily}l >{\ttfamily}l l}
+\toprule
+\normalfont\textbf{In code} & \normalfont\textbf{Value} & \normalfont\textbf{Printed} & \textbf{Meaning}\\ \midrule
+\{x\} & 1.0 / 3 & 0.3333333333333333 & default: shortest exact representation\\
+\{x:F2\} & 3.14159 & 3.14 & fixed point, 2 decimals (rounded for display)\\
+\{n:N0\} & 1234567 & 1,234,567 & thousands separators, 0 decimals\\
+\{x:N2\} & 1234.5 & 1,234.50 & separators and 2 decimals\\
+\{h:D2\} & 7 & 07 & integer with at least 2 digits\\
+{[}\{n,5\}{]} & 42 & {[}\ \ \ 42{]} & width 5, right-aligned\\
+{[}\{n,-5\}{]} & 42 & {[}42\ \ \ {]} & width 5, left-aligned\\
+\{p:P0\} & 0.2 & 20 \% & percent\\
+\{d:C\} & 1234.5m & ¤1,234.50 & currency: invariant sign ¤ --- avoid\\ \bottomrule
+\end{tabular}
+\end{center}
+A format specifier changes only how the value is \emph{shown}; the variable keeps all its digits. Because the invariant culture has no real currency, \texttt{C} prints the generic sign ¤ (a Turkish PC would print \texttt{₺1.234,50}); in this course we print money as \texttt{\$"\{total:F2\} TL"}.
+
+\subsection{Example 9: seconds to hours, minutes and seconds}
+With two \texttt{int} operands, \texttt{/} gives the whole-number quotient and \texttt{\%} the remainder (a preview of Week~4).
+\begin{center}
+\begin{minipage}[c]{0.5\linewidth}
+\begin{pseudobox}[Algorithm -- Seconds to h:m:s]
+\begin{algorithmic}[1]
+\START
+\State \READ $total$
+\State $h \gets \lfloor total / 3600 \rfloor$
+\State $m \gets \lfloor (total \MOD 3600) / 60 \rfloor$
+\State $s \gets total \MOD 60$
+\State \PRINT $h$, $m$, $s$
+\STOP
+\end{algorithmic}
+\end{pseudobox}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.44\linewidth}\centering\small
+\begin{tabular}{>{\ttfamily}lc}
+\toprule
+\normalfont Expression & $total=3725$\\ \midrule
+total / 3600 & 1\\ total \% 3600 & 125\\ 125 / 60 & 2\\ total \% 60 & 5\\ \bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+\needspace{12\baselineskip}
+\lstinputlisting[firstline=3,caption={\ex{03\_09\_SecondsToHms}{integer division, remainder and D2}}]{../code/03_09_SecondsToHms/Program.cs}
+\needspace{8.2\baselineskip}
+\begin{consolebox}[Two runs]
+\begin{run}
+Total seconds: (*\userin{3725}*)
+1 h 2 min 5 s
+Clock: 01:02:05
+Total seconds: (*\userin{86399}*)
+23 h 59 min 59 s
+Clock: 23:59:59
+\end{run}
+\end{consolebox}
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Common mistakes}\label{sec:mistakes}
+\subsection{Compiler errors}
+The messages below are the real messages of the .NET~10 compiler. Read the \emph{first} error first: it gives file, line and column, e.g.\ \texttt{Program.cs(3,17)}. A syntax error such as a missing semicolon hides the other errors until it is fixed, so ``fix, rebuild, repeat''.
+\begin{center}\footnotesize
+\begin{tabularx}{\linewidth}{>{\ttfamily\raggedright\arraybackslash}p{37mm} >{\raggedright\arraybackslash}X >{\ttfamily\raggedright\arraybackslash}p{47mm}}
+\toprule
+\normalfont\textbf{You wrote} & \textbf{Compiler says} & \normalfont\textbf{Fix}\\ \midrule
+int age = Console.ReadLine(); & CS0029: Cannot implicitly convert type 'string' to 'int' & int.Parse(Console.ReadLine())\\
+decimal price = 19.99; & CS0664: Literal of type double cannot be implicitly converted to type 'decimal'; use an 'M' suffix \dots & 19.99m\\
+float f = 3.14; & CS0664: \dots use an 'F' suffix \dots & 3.14f\\
+int n = 3.9; & CS0266: Cannot implicitly convert type 'double' to 'int'. An explicit conversion exists \dots & (int)3.9 \normalfont(if 3 is wanted)\\
+int total; \dots (total) & CS0165: Use of unassigned local variable 'total' & int total = 0;\\
+console.WriteLine(x); & CS0103: The name 'console' does not exist in the current context & Console\\
+Console.WriteLine(x) & CS1002: ; expected & add ;\\
+Pi = 3.0; \normalfont(\texttt{Pi} is const) & CS0131: The left-hand side of an assignment must be a variable, property or indexer & \normalfont do not change constants\\
+int x = 5; int x = 6; & CS0128: A local variable or function named 'x' is already defined in this scope & x = 6;\\
+"C:\textbackslash Temp\textbackslash new" & CS1009: Unrecognized escape sequence & @"C:\textbackslash Temp\textbackslash new"\\ \bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Silent bugs}
+\begin{warnbox}[It compiles, but the answer is wrong]
+These are more dangerous than compiler errors, because nothing warns you. Only tests with known answers reveal them (all verified with real runs):
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item \textbf{Text plus number joins:} \texttt{"Total: " + 2 + 3} prints \texttt{Total: 23}. Use \texttt{"Total: " + (2 + 3)}.
+  \item \textbf{Integer division:} \texttt{9 / 5} is \texttt{1}; \texttt{9 / 5 * 20 + 32} prints \texttt{52}, not \texttt{68}. Use \texttt{9.0 / 5}.
+  \item \textbf{Comma instead of point:} with our template \texttt{double.Parse("72,5")} returns \texttt{725}.
+  \item \textbf{Overflow:} an \texttt{int} variable holding \texttt{int.MaxValue} plus 1 gives \texttt{-2147483648}. Use \texttt{long} or \texttt{checked}.
+  \item \textbf{Forgotten parentheses:} \texttt{weight / height * height} is not $weight/height^2$; \texttt{g1 + g2 + g3 / 3} is not the average (Week~1).
+  \item \textbf{\texttt{=} versus \texttt{==}:} \texttt{=} assigns, \texttt{==} compares. In C\#, \texttt{if (n = 5)} does not compile (CS0029: \emph{Cannot implicitly convert type 'int' to 'bool'}), but the confusion causes wrong reasoning in pseudocode and trace tables.
+\end{itemize}
+\end{warnbox}
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Summary}\label{sec:summary}
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item C\# is compiled to IL (\texttt{dotnet build}); the .NET runtime JIT-compiles IL to machine code when the program runs. Developers install the SDK, users need only the runtime.
+  \item A console project consists of \texttt{Program.cs} and a \texttt{.csproj} file; we use top-level statements and the course template (Nullable off, invariant globalization).
+  \item Statements end with \texttt{;}, C\# is case-sensitive, comments are ignored by the compiler.
+  \item A variable has a name, a type and a value; \texttt{=} stores a value ($\gets$); reading an unassigned variable is error CS0165.
+  \item Default types: \texttt{int} for whole numbers, \texttt{double} for measurements, \texttt{decimal} for money, \texttt{string} for text and identifiers, \texttt{bool} for yes/no, \texttt{char} for one character. Suffixes: \texttt{L}, \texttt{f}, \texttt{m}.
+  \item \texttt{const} protects fixed values; \texttt{Math.PI} is built in.
+  \item \texttt{Console.ReadLine()} returns a string: convert with \texttt{int.Parse}, \texttt{double.Parse}, \texttt{decimal.Parse} or \texttt{Convert}; type a decimal \emph{point}.
+  \item Widening conversions are implicit; narrowing conversions need a cast, which truncates. \texttt{int} arithmetic can overflow silently; \texttt{checked} makes it an error.
+  \item Format output with \texttt{\$"\{x:F2\}"}, \texttt{N0}, \texttt{D2} and field widths such as \texttt{\{x,10:F2\}}.
+\end{enumerate}
+
+\subsection*{Glossary (English -- Turkish)}
+\begin{center}\footnotesize
+\begin{tabular}{ll@{\hspace{5mm}}ll}
+\toprule
+programming language & programlama dili & data type & veri tipi\\
+machine code & makine kodu & integer & tam sayı\\
+assembly language & assembly dili & floating-point number & kayan noktalı sayı\\
+high-level language & yüksek seviyeli dil & character / string & karakter / karakter dizisi\\
+compiler / interpreter & derleyici / yorumlayıcı & Boolean (true/false) & mantıksal (doğru/yanlış)\\
+runtime & çalışma zamanı & constant & sabit\\
+statement & deyim / komut & literal & sabit değer (literal)\\
+semicolon & noktalı virgül & type conversion / cast & tip dönüşümü / tür zorlama\\
+comment & yorum satırı & implicit / explicit & örtük / açık\\
+identifier & tanımlayıcı & overflow & taşma\\
+keyword & anahtar sözcük & truncation & kesme (ondalığı atma)\\
+variable & değişken & exception & istisna (çalışma hatası)\\
+declaration & tanımlama / bildirim & escape sequence & kaçış dizisi\\
+initialisation & ilk değer atama & string interpolation & metin enterpolasyonu\\
+assignment & atama & format specifier & biçim belirteci\\
+case-sensitive & büyük/küçük harfe duyarlı & decimal separator & ondalık ayırıcı\\ \bottomrule
+\end{tabular}
+\end{center}
+
+% =====================================================================
+\needspace{6\baselineskip}
+\section{Exercises}\label{sec:exercises}
+Write every program as a separate project with our template. Each program starts with a header comment, uses meaningful names, prompts with \texttt{Console.Write} and is tested with at least two inputs whose correct results you computed by hand. Difficulty: \stars{1} basic, \stars{2} intermediate, \stars{3} challenging. Solutions (instructor edition) were compiled and run with .NET~10.
+
+\subsection{Quizzes from the lecture}
+\begin{enumerate}[label=\textbf{Q\arabic*.},leftmargin=*,itemsep=1pt]
+  \item \stars{1} \textbf{Predict the output} of each \texttt{WriteLine}:
+\begin{lstlisting}
+int a = 7;
+int b = a;
+a = 10;
+Console.WriteLine($"{a} {b}");   // (1)
+Console.WriteLine(5 / 2);          // (2)
+Console.WriteLine(5 / 2.0);        // (3)
+Console.WriteLine("5" + 2);        // (4)
+Console.WriteLine(1 + 2 + "3");    // (5)
+Console.WriteLine((int)9.99);      // (6)
+\end{lstlisting}
+  \solution{(1) \texttt{10 7} --- \texttt{b = a} copies the value; (2) \texttt{2} --- integer division; (3) \texttt{2.5}; (4) \texttt{52} --- concatenation; (5) \texttt{33} --- left to right: $1+2=3$, then \texttt{3 + "3"}; (6) \texttt{9} --- the cast truncates. Verified by running the code.}
+
+  \item \stars{2} \textbf{Find the bugs.} The program should read a price per kg, buy 2.5~kg, add 20\,\% KDV and print the total. Find all errors and correct the program.
+\begin{lstlisting}
+Console.Write("Price per kg: ")
+decimal price = Console.ReadLine();
+const decimal Vat = 0.20;
+int quantity = 2.5;
+decimal Total = price * quantity * (1 + vat);
+console.WriteLine(total);
+\end{lstlisting}
+  \ifsolutions\begin{solbox}Seven errors on six lines. The first build reports only line~1 (CS1002, missing \texttt{;}), because a syntax error stops the further checks. After fixing it: line~2 CS0029 (string to decimal $\to$ \texttt{decimal.Parse}); line~3 CS0664 (\texttt{0.20m}); line~4 CS0266 (2.5 is not an \texttt{int} $\to$ \texttt{decimal quantity = 2.5m;}); line~5 CS0103 (\texttt{vat} $\ne$ \texttt{Vat}); line~6 CS0103 twice (\texttt{console}, \texttt{total} $\ne$ \texttt{Total}). Corrected program:
+
+\begin{lstlisting}[numbers=none]
+Console.Write("Price per kg: ");
+decimal price = decimal.Parse(Console.ReadLine());
+const decimal Vat = 0.20m;
+decimal quantity = 2.5m;
+decimal total = price * quantity * (1 + Vat);
+Console.WriteLine($"{total:F2}");
+\end{lstlisting}
+
+Input \texttt{100} prints \texttt{300.00} ($100 \times 2.5 \times 1.20$).
+\end{solbox}\fi
+\end{enumerate}
+
+\subsection{In-class exercises}
+\begin{enumerate}[label=\textbf{E\arabic*.},leftmargin=*,itemsep=1pt]
+  \item \stars{1} \textbf{Choose types} for: number of pages of a book, fuel price per litre, ``is a member?'', room code \texttt{"B207"}, distance in km, the initial letter of your name.
+  \solution{\texttt{int}; \texttt{decimal} (money); \texttt{bool}; \texttt{string} (contains letters); \texttt{double}; \texttt{char}.}
+  \item \stars{1} \textbf{Age calculator.} Read a name and a birth year; print e.g.\ ``Ayşe, in 2026 you turn 19.''. Use \texttt{const int CurrentYear = 2026;}.
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+const int CurrentYear = 2026;
+
+Console.Write("Name: ");
+string name = Console.ReadLine();
+Console.Write("Birth year: ");
+int birthYear = int.Parse(Console.ReadLine());
+
+int age = CurrentYear - birthYear;
+Console.WriteLine($"{name}, in {CurrentYear} you turn {age}.");
+\end{lstlisting}
+ Test: Ayşe, 2007 $\to$ \texttt{Ayşe, in 2026 you turn 19.}
+\end{solbox}\fi
+  \item \stars{1} \textbf{Kilometres to miles.} Read a distance in km and print it in miles with 3 decimals; 1~mile $=1.609344$~km (a constant).
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+const double KmPerMile = 1.609344;
+
+Console.Write("Distance (km): ");
+double km = double.Parse(Console.ReadLine());
+
+double miles = km / KmPerMile;
+Console.WriteLine($"{km} km = {miles:F3} miles");
+\end{lstlisting}
+ Test: $42.195$ (marathon) $\to$ \texttt{26.219 miles} ($42.195/1.609344 = 26.2188\ldots$).
+\end{solbox}\fi
+  \item \stars{1} \textbf{Average of three grades.} Read three grades as \texttt{double} and print the average with two decimals.
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+Console.Write("Grade 1: ");
+double g1 = double.Parse(Console.ReadLine());
+Console.Write("Grade 2: ");
+double g2 = double.Parse(Console.ReadLine());
+Console.Write("Grade 3: ");
+double g3 = double.Parse(Console.ReadLine());
+
+double average = (g1 + g2 + g3) / 3;   // parentheses!
+Console.WriteLine($"Average: {average:F2}");
+\end{lstlisting}
+ Test: $60, 70, 85 \to 71.67$. Without the parentheses the program would print $60+70+28.33 = 158.33$.
+\end{solbox}\fi
+  \item \stars{2} \textbf{Back to seconds.} The reverse of Example~9: read hours, minutes and seconds and print the total number of seconds.
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+Console.Write("Hours  : ");
+int hours = int.Parse(Console.ReadLine());
+Console.Write("Minutes: ");
+int minutes = int.Parse(Console.ReadLine());
+Console.Write("Seconds: ");
+int seconds = int.Parse(Console.ReadLine());
+
+int total = hours * 3600 + minutes * 60 + seconds;
+Console.WriteLine($"Total: {total} s");
+\end{lstlisting}
+ Test: $1, 23, 20 \to 5000$ s; check with Example~9: $5000 \to$ \texttt{01:23:20}.
+\end{solbox}\fi
+  \item \stars{2} \textbf{Swap trace.} Trace \texttt{t = x; x = y; y = t;} for $x=3$, $y=8$. Then trace the version without a temporary variable: \texttt{x = x + y; y = x - y; x = x - y;}.
+  \solution{With \texttt{t}: $(x,y,t) = (3,8,3) \to (8,8,3) \to (8,3,3)$. Without: $x=11$; $y=11-8=3$; $x=11-3=8$. The second version works for small integers but can overflow for large ones and is harder to read, so the version with \texttt{temp} is preferred.}
+\end{enumerate}
+
+\subsection{Homework (before Week 4)}
+\begin{enumerate}[label=\textbf{H\arabic*.},leftmargin=*,itemsep=1pt]
+  \item \stars{1} \textbf{Cylinder volume.} Read the radius $r$ and height $h$ (cm); print $V = \pi r^2 h$ with two decimals (use \texttt{Math.PI}).
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+Console.Write("Radius r (cm): ");
+double r = double.Parse(Console.ReadLine());
+Console.Write("Height h (cm): ");
+double h = double.Parse(Console.ReadLine());
+
+double volume = Math.PI * r * r * h;
+Console.WriteLine($"V = {volume:F2} cm³");
+\end{lstlisting}
+ Test: $r=3$, $h=10$: $V = 90\pi = 282.743\ldots \to$ \texttt{282.74 cm³}.
+\end{solbox}\fi
+  \item \stars{1} \textbf{Currency converter.} Read an amount in TL and the exchange rate (TL per 1~EUR) typed by the user; print the amount in EUR with two decimals. Which type do you use and why?
+  \ifsolutions\begin{solbox}\texttt{decimal}, because the values are money.
+\begin{lstlisting}[numbers=none]
+Console.Write("Amount (TL): ");
+decimal amountTl = decimal.Parse(Console.ReadLine());
+Console.Write("TL per 1 EUR: ");
+decimal rate = decimal.Parse(Console.ReadLine());
+
+decimal amountEur = amountTl / rate;
+Console.WriteLine($"{amountTl:F2} TL = {amountEur:F2} EUR");
+\end{lstlisting}
+ Test (example rate, not live data): $1000$ TL at $37.50 \to$ \texttt{26.67 EUR} ($1000/37.5 = 26.666\ldots$).
+\end{solbox}\fi
+  \item \stars{2} \textbf{Minutes to days.} Read a number of minutes and print it as days, hours and minutes.
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+const int MinutesPerDay = 24 * 60;
+
+Console.Write("Minutes: ");
+int total = int.Parse(Console.ReadLine());
+
+int days = total / MinutesPerDay;
+int hours = total % MinutesPerDay / 60;
+int minutes = total % 60;
+Console.WriteLine($"{total} min = {days} days {hours} h {minutes} min");
+\end{lstlisting}
+ Test: $100\,000$ min $\to$ \texttt{69 days 10 h 40 min} ($69 \cdot 1440 = 99\,360$; remaining $640$ min $= 10$ h $40$ min).
+\end{solbox}\fi
+  \item \stars{2} \textbf{Short overflow.} Predict, then run: \texttt{short s = short.MaxValue; s = (short)(s + 1);}. Why is the cast needed? Do the same with \texttt{byte}.
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+short s = short.MaxValue;
+Console.WriteLine($"short.MaxValue = {s}");
+s = (short)(s + 1);        // s + 1 is an int (32768); the cast wraps it
+Console.WriteLine($"after + 1      = {s}");
+
+byte b = byte.MaxValue;
+b = (byte)(b + 1);
+Console.WriteLine($"byte 255 + 1   = {b}");
+\end{lstlisting}
+
+Output: \texttt{32767}, \texttt{-32768}, \texttt{0}. In C\#, arithmetic on \texttt{short} and \texttt{byte} is done in \texttt{int}, so \texttt{s + 1} is the \texttt{int} $32\,768$; assigning it to a \texttt{short} requires a cast (otherwise CS0266), and the cast keeps only the lowest 16 bits, which wraps to $-32\,768$. For \texttt{byte}: $256 \to 0$.
+\end{solbox}\fi
+  \item Read Sections~\ref{sec:languages}--\ref{sec:mistakes} again and solve three problems from the extra practice.
+\end{enumerate}
+
+\subsection{Extra practice}
+\begin{enumerate}[label=\textbf{P\arabic*.},leftmargin=*,itemsep=1pt]
+  \item \stars{1} Which declarations compile? (a) \texttt{int n = 12;} (b) \texttt{long big = 5000000000;} (c) \texttt{float f = 1.5;} (d) \texttt{char c = "A";} (e) \texttt{bool ok = true;} (f) \texttt{string code = 104;} (g) \texttt{decimal d = 12;}
+  \solution{(a) yes; (b) yes --- the literal is too large for \texttt{int}, so it is a \texttt{long} literal automatically; (c) no, CS0664 (needs \texttt{1.5f}); (d) no, CS0029 (a \texttt{string} is not a \texttt{char}; write \texttt{'A'}); (e) yes; (f) no, CS0029 (write \texttt{"104"}); (g) yes --- an \texttt{int} literal converts implicitly to \texttt{decimal}.}
+  \item \stars{1} Identify the legal identifiers: \texttt{total\_sum}, \texttt{3rdGrade}, \texttt{if}, \texttt{myAge}, \texttt{my-age}, \texttt{\_x1}, \texttt{Class}.
+  \solution{Legal: \texttt{total\_sum}, \texttt{myAge}, \texttt{\_x1}, \texttt{Class} (C\# is case-sensitive, so \texttt{Class} is not the keyword \texttt{class}, but it is a confusing name). Illegal: \texttt{3rdGrade} (digit first), \texttt{if} (keyword), \texttt{my-age} (minus sign).}
+  \item \stars{2} \textbf{Fuel cost.} Read the distance (km), the consumption (litres per 100~km) and the fuel price (TL per litre); print the litres needed and the cost.
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+Console.Write("Distance (km): ");
+double distance = double.Parse(Console.ReadLine());
+Console.Write("Consumption (L/100 km): ");
+double consumption = double.Parse(Console.ReadLine());
+Console.Write("Fuel price (TL/L): ");
+decimal price = decimal.Parse(Console.ReadLine());
+
+double litres = distance * consumption / 100;
+decimal cost = (decimal)litres * price;   // double -> decimal needs a cast
+Console.WriteLine($"Fuel: {litres:F2} L, cost: {cost:F2} TL");
+\end{lstlisting}
+ Test: $450$ km, $6.5$ L/100 km, $43.90$ TL/L: $450 \cdot 6.5/100 = 29.25$ L; $29.25 \cdot 43.90 = 1284.075 \to$ \texttt{1284.08 TL}. Note the cast \texttt{(decimal)litres}: \texttt{double} and \texttt{decimal} cannot be mixed without it.
+\end{solbox}\fi
+  \item \stars{2} \textbf{Banknotes.} Read a whole amount in TL and print how many 100, 50, 20, 10, 5 and 1~TL pieces are needed (use \texttt{/} and \texttt{\%}).
+  \ifsolutions\begin{solbox}\begin{lstlisting}[numbers=none]
+Console.Write("Amount (TL, whole): ");
+int amount = int.Parse(Console.ReadLine());
+
+int n100 = amount / 100;
+int rest = amount % 100;
+int n50 = rest / 50;
+rest = rest % 50;
+int n20 = rest / 20;
+rest = rest % 20;
+int n10 = rest / 10;
+rest = rest % 10;
+int n5 = rest / 5;
+int n1 = rest % 5;
+
+Console.WriteLine($"100:{n100} 50:{n50} 20:{n20} 10:{n10} 5:{n5} 1:{n1}");
+\end{lstlisting}
+ Test: $187 \to$ \texttt{100:1 50:1 20:1 10:1 5:1 1:2} ($100+50+20+10+5+2 = 187$).
+\end{solbox}\fi
+  \item \stars{2} \textbf{Trace.} Trace \texttt{int x = 10; int y = 3; int z = x / y; x = x \% y; y = z * y + x;} and give the final values.
+  \solution{$z = 10/3 = 3$; $x = 10 \MOD 3 = 1$; $y = 3 \cdot 3 + 1 = 10$. Final: $x=1$, $y=10$, $z=3$ --- the last line reconstructs the original 10 from quotient and remainder.}
+  \item \stars{3} \textbf{Explain the output} (our template) of: \texttt{(byte)big} with \texttt{int big = 260;}, \texttt{(int)-7.8}, \texttt{Convert.ToInt32(6.5)}, \texttt{Convert.ToInt32(7.5)}, \texttt{double.Parse("1,500")}, \texttt{7 / 2 * 2.0}, \texttt{7 / 2.0 * 2}.
+  \solution{Real output: \texttt{4}, \texttt{-7}, \texttt{6}, \texttt{8}, \texttt{1500}, \texttt{6}, \texttt{7}. Reasons: $260-256=4$; a cast truncates towards zero; \texttt{Convert} rounds a midpoint to the even neighbour (6 and 8); with invariant culture the comma is a thousands separator; \texttt{7 / 2} is the integer 3, times 2.0 gives 6; \texttt{7 / 2.0} is 3.5, times 2 gives 7.}
+  \item \stars{3} \textbf{Seconds to days.} Read a (possibly very large) number of seconds and print it as \texttt{d hh:mm:ss}. Which type allows inputs above 2\,147\,483\,647?
+  \ifsolutions\begin{solbox}\texttt{long}.
+\begin{lstlisting}[numbers=none]
+Console.Write("Seconds: ");
+long total = long.Parse(Console.ReadLine());
+
+long days = total / 86400;
+long hours = total % 86400 / 3600;
+long minutes = total % 3600 / 60;
+long seconds = total % 60;
+Console.WriteLine($"{days} d {hours:D2}:{minutes:D2}:{seconds:D2}");
+\end{lstlisting}
+ Test: $1\,000\,000 \to$ \texttt{11 d 13:46:40} ($11 \cdot 86400 = 950\,400$; remaining $49\,600 = 13$ h $46$ min $40$ s).
+\end{solbox}\fi
+  \item \stars{3} \textbf{Research.} Find out why \texttt{0.1 + 0.2} is not exactly \texttt{0.3} for a \texttt{double}. Write $0.1$ as a binary fraction (first 10 bits after the point).
+  \solution{$0.1_{10} = 0.0001100110011\ldots_2$ (the pattern 0011 repeats forever); first 10 bits: $0.0001100110$. A \texttt{double} keeps 52 bits of the fraction, so the stored value is only close to $0.1$; the errors of $0.1$ and $0.2$ add up to $0.30000000000000004$.}
+\end{enumerate}
+
+% =====================================================================
+\section*{References and further reading}
+\addcontentsline{toc}{section}{References and further reading}
+\begin{enumerate}[label={[\arabic*]},leftmargin=*,itemsep=0pt,font=\footnotesize]\footnotesize
+  \item Microsoft Learn, \emph{Built-in types (C\# reference)}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/built-in-types}
+  \item Microsoft Learn, \emph{Integral numeric types}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/integral-numeric-types}
+  \item Microsoft Learn, \emph{Floating-point numeric types}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/floating-point-numeric-types}
+  \item Microsoft Learn, \emph{Built-in numeric conversions}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/numeric-conversions}
+  \item Microsoft Learn, \emph{checked and unchecked statements}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/checked-and-unchecked}
+  \item Microsoft Learn, \emph{String interpolation using \$}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/tokens/interpolated}
+  \item Microsoft Learn, \emph{Standard numeric format strings}. \url{https://learn.microsoft.com/en-us/dotnet/standard/base-types/standard-numeric-format-strings}
+  \item Microsoft Learn, \emph{Top-level statements}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements}
+  \item Microsoft Learn, \emph{C\# identifier naming rules and conventions}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names}
+  \item Microsoft Learn, \emph{.NET globalization and ICU (invariant mode)}. \url{https://learn.microsoft.com/en-us/dotnet/core/runtime-config/globalization}
+  \item Microsoft Learn, \emph{Managed execution process} (IL and JIT). \url{https://learn.microsoft.com/en-us/dotnet/standard/managed-execution-process}
+\end{enumerate}
+
+\end{document}

@@ -1,0 +1,933 @@
+% =====================================================================
+%  MCMP113 Introduction to Basic Algorithms and Programming
+%  Week 2 Lecture Notes -- Flowcharts and Their Symbols, Basic Flowchart Examples
+%  Asst. Prof. Hasan Oguz, PhD -- Istanbul Okan University
+%  Compile with XeLaTeX (twice).
+%    Student version  : xelatex MCMP113_Week02_Notes.tex
+%    Instructor version (with solutions):
+%       xelatex -jobname=MCMP113_Week02_Notes_Solutions "\def\withsolutions{1}\input{MCMP113_Week02_Notes.tex}"
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage{mcmp113notes}
+\usetikzlibrary{shapes.symbols}
+\mcmpweek{2}\mcmptitle{Flowcharts and Their Symbols}{Basic flowchart examples $\cdot$ from pictures to pseudocode to a first look at C\#}
+
+% ---------- week-2 helpers ----------
+\tikzset{
+  yes/.style={font=\sffamily\scriptsize\bfseries,text=repc},
+  no/.style={font=\sffamily\scriptsize\bfseries,text=errc},
+  conn/.style={fc,circle,fill=amber!18,minimum size=7mm,inner sep=0pt},
+  fcp/.style={node distance=5mm and 9mm},
+}
+% predefined-process symbol: \prenode{name}{position options}{text}
+\newcommand{\prenode}[3]{\node[proc,#2,minimum width=26mm] (#1) {#3};
+  \draw[ink,line width=0.7pt] ([xshift=2.2mm]#1.north west)--([xshift=2.2mm]#1.south west)
+                             ([xshift=-2.2mm]#1.north east)--([xshift=-2.2mm]#1.south east);}
+\newcommand{\fig}[1]{\begin{center}#1\end{center}}
+\lstset{basicstyle=\ttfamily\footnotesize,literate={←}{{$\leftarrow$}}1 {·}{{\textperiodcentered}}1 {—}{{--}}1}
+
+\begin{document}
+\makemcmptitle
+
+\begin{notebox}[How to use these notes]
+These notes follow the Week~2 slides and add what does not fit on a slide: every flowchart of the lecture drawn in full, the matching pseudocode, trace tables, test cases, and the C\# ``look-ahead'' programs from the \texttt{code/} folder together with real sample runs. \textbf{You are not expected to understand the C\# syntax yet} -- it is taught from Week~3 on. Read the programs only to see that every box of a flowchart becomes one or two lines of code. Work through Sections~\ref{sec:symbols}--\ref{sec:examples} before Week~3, draw every example yourself on paper, then do the exercises in Section~\ref{sec:exercises}. Difficulty: \stars{1} basic, \stars{2} intermediate, \stars{3} challenging.
+\end{notebox}
+
+{\small\setcounter{tocdepth}{1}\tableofcontents}
+
+\section*{Learning outcomes}
+After this week you should be able to:
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item name and draw the standard flowchart symbols (ISO~5807) and explain what each one means;
+  \item apply the drawing rules to produce clear and correct flowcharts;
+  \item recognise sequence, selection and repetition as flowchart patterns, and nest them;
+  \item convert pseudocode into a flowchart and a flowchart into pseudocode;
+  \item trace a flowchart by hand with a trace table and predict its output;
+  \item relate each box of a flowchart to the corresponding line(s) of a C\# program (preview).
+\end{enumerate}
+
+% =====================================================================
+\section{Flowchart symbols}\label{sec:symbols}
+
+\subsection{What is a flowchart?}
+\begin{defbox}[Definition]
+A \textbf{\color{amber}flowchart} is a diagram of an algorithm. Each \emph{shape} is one step, and the shape tells you what \emph{kind} of step it is. \emph{Flow lines} (arrows) show the order in which the steps are executed.
+\end{defbox}
+
+In Week~1 we wrote algorithms in pseudocode. A flowchart describes exactly the same algorithm, but visually: branches (IF) and loops (WHILE) become paths you can follow with your finger. Flowcharts are language-independent -- a C\#, Python or Java programmer can read the same chart -- and they are a standard exam tool, drawn by hand like pseudocode.
+
+\paragraph{A short history.} Flowcharts are older than computers. In 1921 Frank and Lillian Gilbreth presented the \emph{flow process chart} to the American Society of Mechanical Engineers as a tool for analysing factory work. In 1947 Herman Goldstine and John von Neumann used \emph{flow diagrams} to plan programs for early electronic computers. The symbols were standardised in the USA by ANSI~X3.5 (1970) and internationally by \textbf{ISO~5807} (1985), which is why textbooks all over the world use the same shapes. Modern notations such as UML activity diagrams and BPMN, and teaching tools such as Flowgorithm, are built on the same idea.
+
+\subsection{The six basic symbols}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{>{\centering\arraybackslash}m{36mm}>{\raggedright\arraybackslash}m{32mm}L}
+\hrow \hdr{Symbol} & \hdr{Name} & \hdr{Meaning and rules}\\
+\tikz\node[term]{Start}; & \textbf{Terminal} & Start or end of the algorithm. Exactly one Start; in this course also one End.\\
+\rowcolor{mist}\tikz\node[io]{Read $x$}; & \textbf{Input / Output} & \READ data from the keyboard or \PRINT results on the screen.\\
+\tikz\node[proc]{$sum \gets sum + x$}; & \textbf{Process} & A calculation or an assignment ($\gets$).\\
+\rowcolor{mist}\tikz\node[dec]{$x>0$ ?}; & \textbf{Decision} & A yes/no question. Exactly two exits, labelled \emph{yes} and \emph{no} (or \emph{true}/\emph{false}).\\
+\tikz{\prenode{g}{}{GCD$(a,b)$}} & \textbf{Predefined process} & A named sub-algorithm that is described elsewhere (on another page). In C\# it becomes a method call (Week~12).\\
+\rowcolor{mist}\tikz\node[conn]{A}; & \textbf{Connector} & Joins flow lines, or continues the chart at another circle with the same letter.\\
+\end{tabularx}
+\end{center}
+
+\subsection{Flow lines, connectors and annotations}
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \term{Flow lines} connect the symbols. The main direction is top to bottom and left to right, but \emph{always} draw the arrowhead, because loops flow upwards.
+  \item An \term{on-page connector} is a small circle with a letter; two circles with the same letter mean ``the line continues here''. Use connectors to avoid crossing lines or to split a long chart.
+  \item An \term{off-page connector} (a ``home-plate'' pentagon) continues the chart on another page.
+  \item An \term{annotation} is an open bracket joined to a symbol by a dashed line. It is a comment: it is not a step and is never executed, exactly like \texttt{//} comments in C\#.
+\end{itemize}
+\fig{\begin{tikzpicture}[fcp]
+\node[proc] (p) at (0,0) {$x \gets x+1$};
+\node[conn] (a1) at (0,-1.3) {A};
+\draw[arr] (p)--(a1);
+\node[conn] (a2) at (3.2,0) {A};
+\node[io] (q) at (3.2,-1.3) {Print $x$};
+\draw[arr] (a2)--(q);
+\node[font=\sffamily\scriptsize,text=slate] at (1.6,-2.2) {on-page connectors};
+\node[signal,signal to=south,draw=ink,line width=0.7pt,fill=amber!18,minimum width=9mm,minimum height=10mm,font=\sffamily\small] (op) at (6.1,-0.6) {P2};
+\node[font=\sffamily\scriptsize,text=slate] at (6.1,-2.2) {off-page connector};
+\node[proc] (r) at (9.2,-0.6) {$r \gets a \MOD b$};
+\draw[ink,dashed] (r.east) -- ++(6mm,0) coordinate (ann);
+\draw[ink,line width=0.7pt] ([shift={(2mm,4mm)}]ann) -- ([shift={(0,4mm)}]ann) -- ([shift={(0,-4mm)}]ann) -- ([shift={(2mm,-4mm)}]ann);
+\node[right=1mm of ann,font=\sffamily\small\itshape,text=slate,align=left] {remainder\\of $a \div b$};
+\node[font=\sffamily\scriptsize,text=slate] at (10.2,-2.2) {annotation};
+\end{tikzpicture}}
+
+\subsection{Every box has a pseudocode line}
+The table below is our dictionary between the three notations. Note that the decision diamond is used both for \textbf{IF} and for \textbf{WHILE}; what turns it into a loop is an arrow that goes back \emph{up} (Section~\ref{sec:structures}).
+\begin{center}\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{26mm}>{\raggedright\arraybackslash}p{50mm}L}
+\hrow \hdr{Symbol} & \hdr{Pseudocode (Week 1)} & \hdr{C\# (from Week 3)}\\
+Terminal & \textbf{START} \dots\ \textbf{END} & the program begins / ends\\
+\rowcolor{mist}Input & \READ $x$ & \texttt{x = int.Parse(Console.ReadLine());}\\
+Output & \PRINT $x$ & \texttt{Console.WriteLine(x);}\\
+\rowcolor{mist}Process & $x \gets x + 1$ & \texttt{x = x + 1;}\\
+Decision & \textbf{IF} $x<0$ \textbf{THEN} \dots\ / \textbf{WHILE} $i\le N$ \dots & \texttt{if (x < 0) \dots}\ / \texttt{while (i <= n) \dots}\\
+\rowcolor{mist}Predefined process & use the sub-algorithm GCD$(a,b)$ & a method call, e.g.\ \texttt{Math.Sqrt(x)} (Week 12)\\
+\end{tabularx}
+\end{center}
+\begin{warnbox}[Assignment is not comparison]
+In pseudocode and flowcharts, $\gets$ \emph{assigns} and $=$ \emph{compares}. In C\#, \texttt{=} assigns and \texttt{==} compares.
+\end{warnbox}
+
+\subsection{Eight drawing rules}\label{sec:rules}
+These rules are also the grading checklist for flowchart questions in the exams.
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item \textbf{One Start, one End}; every path from Start must reach End.
+  \item \textbf{Arrows on every line}; main direction top $\to$ bottom and left $\to$ right.
+  \item \textbf{A decision has exactly two exits}, labelled yes/no (true/false).
+  \item \textbf{Every other box has one way in and one way out}; branches join again before the flow continues.
+  \item \textbf{No crossing lines}: re-route the line or use a connector.
+  \item \textbf{Short, precise text}: ``$sum \gets sum + i$'', not ``add it up''.
+  \item \textbf{Loops must make progress}: something that the condition tests must change inside the loop.
+  \item \textbf{One idea per box, same names as the pseudocode}: never mix an input and a calculation (``Read $x$, then double it'' needs two boxes).
+\end{enumerate}
+
+\begin{activity}[Quiz: which symbol?]
+Which symbol would you use for: (1) Read age; (2) $total \gets total + price$; (3) $age \ge 18$ ?; (4) Print ``Welcome''; (5) GCD$(a,b)$, described on page~2; (6) Start; (7) Read $x$, then $x \gets 2\times x$?\\
+\emph{Answers:} 1 and 4 input/output; 2 process; 3 decision; 5 predefined process; 6 terminal; 7 is a trap -- two boxes, an input followed by a process.
+\end{activity}
+
+% =====================================================================
+\section{Three structures as flowchart patterns}\label{sec:structures}
+Week~1 showed that every algorithm is built from three structures: \textcolor{seqc}{\textbf{sequence}}, \textcolor{selc}{\textbf{selection}} and \textcolor{repc}{\textbf{repetition}} (Böhm and Jacopini, 1966). Each has a standard flowchart pattern with \textbf{exactly one entry arrow and one exit arrow}. Because of this, a whole pattern can be placed wherever a single box could stand: an IF inside a loop, a loop inside an ELSE, and so on. This is called \term{nesting}.
+
+\begin{center}
+\begin{tikzpicture}[fcp,every node/.append style={font=\sffamily\scriptsize}]
+% sequence
+\begin{scope}
+\node[font=\sffamily\small\bfseries,text=seqc] at (0,0.9) {Sequence};
+\coordinate (in) at (0,0.5);
+\node[proc,minimum width=16mm] (a) at (0,-0.1) {statement 1};
+\node[proc,minimum width=16mm,below=4mm of a] (b) {statement 2};
+\node[proc,minimum width=16mm,below=4mm of b] (c) {statement 3};
+\draw[arr] (in)--(a); \draw[arr](a)--(b); \draw[arr](b)--(c); \draw[arr] (c)--++(0,-0.9);
+\end{scope}
+% if-then
+\begin{scope}[xshift=3.3cm]
+\node[font=\sffamily\small\bfseries,text=selc] at (0.6,0.9) {IF--THEN};
+\node[dec] (d) at (0,-0.3) {cond?};
+\node[proc,minimum width=8mm] (a) at (1.9,-0.3) {A};
+\draw[arr] (0,0.5)--(d);
+\draw[arr] (d)--node[above,yes]{yes}(a);
+\draw[arr] (d.south)--node[pos=0.25,left,no]{no}(0,-2.6);
+\draw[arr] (a.south) |- (0,-1.8);
+\end{scope}
+% if-then-else
+\begin{scope}[xshift=8.6cm]
+\node[font=\sffamily\small\bfseries,text=selc] at (0,0.9) {IF--THEN--ELSE};
+\node[dec] (d) at (0,-0.3) {cond?};
+\node[proc,minimum width=8mm] (a) at (1.5,-1.3) {A};
+\node[proc,minimum width=8mm] (b) at (-1.5,-1.3) {B};
+\draw[arr] (0,0.5)--(d);
+\draw[arr] (d.east) -| node[pos=0.3,above,yes]{yes} (a.north);
+\draw[arr] (d.west) -| node[pos=0.3,above,no]{no} (b.north);
+\draw (a.south) |- (0,-2.0); \draw (b.south) |- (0,-2.0);
+\draw[arr] (0,-2.0)--(0,-2.6);
+\end{scope}
+% while
+\begin{scope}[xshift=13.3cm]
+\node[font=\sffamily\small\bfseries,text=repc] at (0.2,0.9) {WHILE (pre-test)};
+\node[dec] (d) at (0,-0.3) {cond?};
+\node[proc,minimum width=12mm] (a) at (0,-1.5) {body};
+\draw[arr] (0,0.6)--(d);
+\draw[arr] (d)--node[right,yes]{yes}(a);
+\draw[arr] (a.south) -- ++(0,-0.3) -| (-1.3,0.25) -- (0,0.25);
+\draw[arr] (d.east) -- node[above,no]{no} (1.3,-0.3) -- (1.3,-2.6);
+\end{scope}
+\end{tikzpicture}
+\end{center}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{LLLL}
+\toprule
+\textcolor{seqc}{\textbf{Sequence}} & \textcolor{selc}{\textbf{IF--THEN}} & \textcolor{selc}{\textbf{IF--THEN--ELSE}} & \textcolor{repc}{\textbf{WHILE}}\\ \midrule
+statement 1\newline statement 2\newline statement 3 & \textbf{IF} $c$ \textbf{THEN}\newline\hspace*{1em}A\newline\textbf{END IF} & \textbf{IF} $c$ \textbf{THEN}\newline\hspace*{1em}A\newline\textbf{ELSE}\newline\hspace*{1em}B\newline\textbf{END IF} & \textbf{WHILE} $c$\newline\hspace*{1em}body\newline\textbf{END WHILE}\\ \bottomrule
+\end{tabularx}
+\end{center}
+
+\paragraph{Selection.} In the IF--THEN pattern the ``no'' exit simply skips the block A; in IF--THEN--ELSE exactly one of A or B runs, and then the two paths join. The join is essential: if the ``yes'' path of an IF went straight to End, everything after the IF would be skipped.
+
+\paragraph{Repetition.} The only difference between an IF and a loop is the \term{back-edge}: an arrow from the end of the body back to a point \emph{above} the decision. \textbf{An arrow pointing upwards always means repetition.} In a \term{pre-test loop} (WHILE) the condition is tested first, so the body may run zero times. In a \term{post-test loop} the body comes first and the decision after it, so the body runs at least once; C\# has the \texttt{do \dots\ while} statement for this (Week~7). Our pseudocode only uses WHILE and FOR; a counting loop \textbf{FOR} $i \gets 1$ \textbf{TO} $N$ is drawn as $i\gets1$, the decision $i\le N$, the body, $i \gets i+1$ and the back-edge -- exactly the shape of Example~7 (Section~\ref{ex:sum}). We draw the back-edge into the line just above the diamond, so that the diamond keeps a single entry.
+
+\subsection{Conversion 1: pseudocode $\to$ flowchart}
+Convert line by line: \textbf{START}/\textbf{END} become terminals, \READ/\PRINT become parallelograms, assignments become rectangles, a \textbf{WHILE} line becomes a diamond, and \textbf{END WHILE} becomes the back-edge. The statement after \textbf{END WHILE} hangs on the ``no'' exit. Example: the countdown of Week~1 (exercise~D).
+
+\begin{center}
+\begin{minipage}[c]{0.36\linewidth}
+\begin{pseudobox}[Algorithm 1 -- Countdown]
+\begin{algorithmic}[1]
+\START
+\State \READ $N$
+\WhileX{$N \ge 1$}
+  \State \PRINT $N$
+  \State $N \gets N - 1$
+\EndWhileX
+\State \PRINT \str{Go!}
+\STOP
+\end{algorithmic}
+\end{pseudobox}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.58\linewidth}\centering
+\begin{tikzpicture}[fcp]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $N$};
+\node[dec,below=7mm of r] (d) {$N \ge 1$ ?};
+\node[io,below=of d] (p) {Print $N$};
+\node[proc,below=of p] (q) {$N \gets N-1$};
+\node[io,right=12mm of d] (g) {Print ``Go!''};
+\node[term,below=of g] (e) {End};
+\draw[arr] (s)--(r); \draw[arr] (r)--(d);
+\draw[arr] (d)--node[right,yes]{yes}(p); \draw[arr] (p)--(q);
+\draw[arr] (q.south) -- ++(0,-4mm) -| ([xshift=-9mm]d.west) |- ($(r.south)!0.5!(d.north)$);
+\draw[arr] (d)--node[above,no]{no}(g); \draw[arr] (g)--(e);
+\end{tikzpicture}
+\end{minipage}
+\end{center}
+Trace for $N=3$: the output is $3, 2, 1$, Go!. Edge case $N=0$: the condition is false at once and only ``Go!'' is printed. If the box $N \gets N-1$ is forgotten, $N\ge1$ stays true forever: an infinite loop.
+
+\subsection{Conversion 2: flowchart $\to$ pseudocode}\label{sec:conv2}
+Read the chart from Start. For every diamond ask: \emph{do its two paths join again further down (IF), or does an arrow return above it (WHILE)?} In the chart below there is no upward arrow, so it contains only selection; the second decision sits on the ``no'' exit of the first, so the second IF goes \emph{inside the ELSE} of the first.
+
+\begin{center}
+\begin{minipage}[c]{0.52\linewidth}\centering
+\begin{tikzpicture}[fcp]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $x$};
+\node[dec,below=of r] (d1) {$x>0$ ?};
+\node[dec,below=6mm of d1] (d2) {$x<0$ ?};
+\node[io,below=6mm of d2] (p3) {Print ``zero''};
+\node[term,below=of p3] (e) {End};
+\node[io,right=9mm of d1] (p1) {Print ``positive''};
+\node[io,right=9mm of d2] (p2) {Print ``negative''};
+\draw[arr] (s)--(r); \draw[arr](r)--(d1);
+\draw[arr] (d1)--node[above,yes]{yes}(p1);
+\draw[arr] (d1)--node[right,no]{no}(d2);
+\draw[arr] (d2)--node[above,yes]{yes}(p2);
+\draw[arr] (d2)--node[right,no]{no}(p3);
+\draw[arr] (p3)--(e);
+\coordinate (j) at ([xshift=5mm]p2.east);
+\draw (p1.east) -| (j |- e); \draw (p2.east) -- (j |- p2);
+\draw[arr] (j |- e) -- (e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.44\linewidth}
+\begin{pseudobox}[Algorithm 2 -- Sign of a number]
+\begin{algorithmic}[1]
+\START
+\State \READ $x$
+\IfX{$x > 0$}
+  \State \PRINT \str{positive}
+\ElseX
+  \IfX{$x < 0$}
+    \State \PRINT \str{negative}
+  \ElseX
+    \State \PRINT \str{zero}
+  \EndIfX
+\EndIfX
+\STOP
+\end{algorithmic}
+\end{pseudobox}
+\end{minipage}
+\end{center}
+Three test inputs visit every box: $5 \to$ positive (path yes), $-3 \to$ negative (no, yes), $0 \to$ zero (no, no). Writing three separate IFs ($x>0$, $x<0$, $x=0$) gives the same output here, but it re-tests conditions that are already known and no longer matches the chart. In Week~5 this shape is written with \texttt{else if}.
+
+\subsection{Tracing a flowchart with a trace table}\label{sec:trace}
+To \term{trace} (desk-check) a flowchart, put a finger on Start and follow the arrows. Every time a box changes a variable, write the new value in a new row of a \term{trace table}; every time you pass a decision, write down the answer. The chart below is deliberately given without explanation. Trace it for $n = 20$.
+
+\begin{center}
+\begin{minipage}[c]{0.46\linewidth}\centering
+\begin{tikzpicture}[fcp]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $n$};
+\node[proc,below=of r] (i) {$p \gets 1,\ k \gets 0$};
+\node[dec,below=7mm of i] (d) {$p < n$ ?};
+\node[proc,below=of d] (b1) {$p \gets p \times 2$};
+\node[proc,below=of b1] (b2) {$k \gets k+1$};
+\node[io,right=10mm of d] (o) {Print $k$};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(i); \draw[arr](i)--(d);
+\draw[arr] (d)--node[right,yes]{yes}(b1); \draw[arr](b1)--(b2);
+\draw[arr] (b2.south) -- ++(0,-4mm) -| ([xshift=-7mm]d.west) |- ($(i.south)!0.5!(d.north)$);
+\draw[arr] (d)--node[above,no]{no}(o); \draw[arr](o)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.5\linewidth}\centering\small
+\begin{tabular}{ccccc}
+\toprule
+step & $p<n$? & $p$ & $k$ & output\\ \midrule
+start & -- & 1 & 0 & \\
+1 & yes & 2 & 1 & \\
+2 & yes & 4 & 2 & \\
+3 & yes & 8 & 3 & \\
+4 & yes & 16 & 4 & \\
+5 & yes & 32 & 5 & \\
+exit & \textcolor{errc}{no} & 32 & 5 & \textbf{5}\\ \bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+\textbf{What does it compute?} $p$ runs through $1, 2, 4, 8, \dots$, so after $k$ passes $p = 2^k$, and the loop stops at the first $k$ with $2^k \ge n$. The output is the number of doublings needed to reach at least $n$, i.e.\ the smallest $k$ with $2^k \ge n$ (for $n \ge 1$ this is $\lceil \log_2 n \rceil$). For $n = 1000$ it prints $10$, because $2^9 = 512 < 1000 \le 1024 = 2^{10}$ -- the same $10$ as the worst case of the halving guessing game of Week~1. For $n = 1$ the body never runs and it prints $0$.
+
+% =====================================================================
+\section{Basic flowchart examples}\label{sec:examples}
+Every example follows the same path: \emph{problem $\to$ flowchart $\to$ C\# preview $\to$ a real run}. The programs are in the \texttt{code/} folder (one project per example; run one with \texttt{cd code/02\_07\_SumToN} and \texttt{dotnet run}). In the sample runs, what the user types is shown in \userin{amber}.
+
+\begin{notebox}[About the C\# previews]
+The programs use top-level statements, \texttt{int.Parse}/\texttt{double.Parse} for input, \texttt{if}/\texttt{else} and \texttt{while}. All of this is explained properly in Weeks~3--7. For now, look only for the correspondence: each input box is a \texttt{Console.ReadLine()}, each process box an assignment, each diamond an \texttt{if} or a \texttt{while}, each output box a \texttt{Console.WriteLine}.
+\end{notebox}
+
+\subsection{Example 1 -- rectangle area and perimeter (sequence)}
+\emph{Problem.} Read the width and height of a rectangle; print its area $A = w\cdot h$ and perimeter $P = 2(w+h)$. Pure sequence: six boxes, every box runs exactly once.
+\begin{center}
+\begin{minipage}[c]{0.42\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $width$, $height$};
+\node[proc,below=of r] (a) {$area \gets width \times height$};
+\node[proc,below=of a] (p) {$perimeter \gets 2 \times (width + height)$};
+\node[io,below=of p] (o) {Print $area$, $perimeter$};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(a); \draw[arr](a)--(p); \draw[arr](p)--(o); \draw[arr](o)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.54\linewidth}
+\begin{consolebox}[Sample run]
+Width: \userin{4.5}\\ Height: \userin{3}\\ Area: 13.5\\ Perimeter: 15
+\end{consolebox}
+Check by hand: $4.5 \times 3 = 13.5$ and $2\times(4.5+3) = 15$. A negative width would produce a negative area without complaint; rejecting invalid input needs selection (Week~5).
+\end{minipage}
+\end{center}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_01\_RectangleArea/Program.cs} -- the comments name the flowchart box of each line}]{../code/02_01_RectangleArea/Program.cs}
+
+\subsection{Example 2 -- absolute value (IF--THEN)}
+The Week~1 example. The ``no'' exit skips the process box; both paths meet at the output box.
+\begin{center}
+\begin{minipage}[c]{0.42\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm and 8mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $x$};
+\node[dec,below=of r] (d) {$x<0$ ?};
+\node[proc,right=of d,minimum width=14mm] (n) {$x \gets -x$};
+\node[io,below=7mm of d] (p) {Print $x$};
+\node[term,below=of p] (e) {End};
+\draw[arr] (s)--(r); \draw[arr] (r)--(d);
+\draw[arr] (d)--node[above,yes]{yes}(n);
+\draw[arr] (d)--node[right,no]{no}(p);
+\draw[arr] (n)|-(p);
+\draw[arr] (p)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.54\linewidth}
+\begin{consolebox}[Two runs]
+Enter a number: \userin{-7.25}\\ Absolute value: 7.25\\
+Enter a number: \userin{12}\\ Absolute value: 12
+\end{consolebox}
+\end{minipage}
+\end{center}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_02\_AbsoluteValue/Program.cs}}]{../code/02_02_AbsoluteValue/Program.cs}
+
+\subsection{Example 3 -- even or odd (IF--THEN--ELSE)}
+An integer $n$ is even exactly when $n \MOD 2 = 0$ (C\#: \texttt{n \% 2 == 0}). Exactly one of the two output boxes is used.
+\begin{center}
+\begin{minipage}[c]{0.42\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm and 8mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $n$};
+\node[dec,below=of r] (d) {$n \MOD 2 = 0$ ?};
+\node[io,right=of d] (pe) {Print ``even''};
+\node[io,below=6mm of d] (po) {Print ``odd''};
+\node[term,below=of po] (e) {End};
+\draw[arr] (s)--(r); \draw[arr] (r)--(d);
+\draw[arr] (d)--node[above,yes]{yes}(pe);
+\draw[arr] (d)--node[right,no]{no}(po);
+\draw[arr] (po)--(e);
+\draw[arr] (pe) |- (e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.54\linewidth}
+\begin{consolebox}[Two runs]
+Enter an integer: \userin{14}\\ 14 is even\\
+Enter an integer: \userin{-7}\\ -7 is odd
+\end{consolebox}
+\end{minipage}
+\end{center}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_03\_EvenOdd/Program.cs}}]{../code/02_03_EvenOdd/Program.cs}
+\begin{warnbox}[Test for 0, not for 1]
+In C\# the remainder of a negative number is negative or zero: \texttt{-7 \% 2} is $-1$. A program that tests ``odd'' with \texttt{n \% 2 == 1} would therefore call $-7$ even. Testing \texttt{n \% 2 == 0} for ``even'' works for all integers. Tests: $14$, $-7$ and the edge case $0$ (even).
+\end{warnbox}
+
+\subsection{Example 4 -- grade: PASS or FAIL (a boundary)}
+The specification says that a grade of $50$ or more passes. The condition is therefore $grade \ge 50$ (C\#: \texttt{>=}), and the most important test is exactly $50$.
+\begin{center}
+\begin{minipage}[c]{0.42\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm and 8mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $grade$};
+\node[dec,below=of r] (d) {$grade \ge 50$ ?};
+\node[io,right=of d] (pp) {Print ``PASS''};
+\node[io,below=6mm of d] (pf) {Print ``FAIL''};
+\node[term,below=of pf] (e) {End};
+\draw[arr] (s)--(r); \draw[arr] (r)--(d);
+\draw[arr] (d)--node[above,yes]{yes}(pp);
+\draw[arr] (d)--node[right,no]{no}(pf);
+\draw[arr] (pf)--(e);
+\draw[arr] (pp) |- (e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.54\linewidth}
+\begin{consolebox}[Two runs]
+Grade (0-100): \userin{49.5}\\ FAIL\\
+Grade (0-100): \userin{50}\\ PASS
+\end{consolebox}
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+test & grade & expected\\ \midrule
+lowest & 0 & FAIL\\
+just below & 49.5 & FAIL\\
+\textbf{boundary} & \textbf{50} & \textbf{PASS}\\
+highest & 100 & PASS\\ \bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_04\_PassFail/Program.cs}}]{../code/02_04_PassFail/Program.cs}
+If someone wrote $grade > 50$, only the boundary test would reveal the bug. Invalid grades such as $120$ or $-5$ are not rejected yet (Week~5).
+
+\subsection{Example 5 -- maximum of three numbers (nested decisions)}
+\paragraph{Method 1: nested decisions.} First compare $a$ and $b$; the larger one is then compared with $c$. Two different decisions can end in ``Print $c$'', so both of those exits join into a single box.
+\fig{\begin{tikzpicture}[fcp]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $a$, $b$, $c$};
+\node[dec,below=of r] (d1) {$a>b$ ?};
+\node[dec] (d2) at ($(d1)+(-3.4,-1.7)$) {$a>c$ ?};
+\node[dec] (d3) at ($(d1)+(3.4,-1.7)$) {$b>c$ ?};
+\node[io,below=7mm of d2] (pa) {Print $a$};
+\node[io,below=7mm of d3] (pb) {Print $b$};
+\node[io] (pc) at (pa -| d1) {Print $c$};
+\node[term,below=6mm of pc] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(d1);
+\draw[arr] (d1.west) -| node[pos=0.3,above,yes]{yes} (d2.north);
+\draw[arr] (d1.east) -| node[pos=0.3,above,no]{no} (d3.north);
+\draw[arr] (d2)--node[right,yes]{yes}(pa);
+\draw[arr] (d3)--node[right,yes]{yes}(pb);
+\draw (d2.east) -- node[above,no]{no} (d2 -| d1);
+\draw (d3.west) -- node[above,no]{no} (d3 -| d1);
+\draw[arr] (d2 -| d1) -- (pc);
+\draw[arr] (pc)--(e); \draw[arr] (pa)|-(e); \draw[arr] (pb)|-(e);
+\end{tikzpicture}}
+The chart has four paths, so we need at least four tests; negative numbers and ties must work too:
+\begin{center}\small
+\begin{tabular}{cccc}
+\toprule
+$a, b, c$ & decisions & path ends in & maximum\\ \midrule
+$4, 9, 7$ & $a>b$ no, $b>c$ yes & Print $b$ & 9\\
+$8, 3, 8$ & $a>b$ yes, $a>c$ no & Print $c$ & 8\\
+$2, 5, 9$ & $a>b$ no, $b>c$ no & Print $c$ & 9\\
+$9, 1, 4$ & $a>b$ yes, $a>c$ yes & Print $a$ & 9\\
+$-2, -5, -1$ & $a>b$ yes, $a>c$ no & Print $c$ & $-1$\\ \bottomrule
+\end{tabular}
+\end{center}
+For the tie $(8,3,8)$ the chart prints $c$; that is still correct, because $c$ equals the maximum.
+
+\paragraph{Method 2: a running maximum.} Keep ``the largest so far'' in $max$ and let each new number challenge it: two IF--THEN patterns in sequence, no nesting. This design scales -- for 100 numbers it is the same two boxes inside a loop (Week~6) -- whereas the nested design would explode. Starting with $max \gets a$ (not with $0$) is what makes negative inputs work.
+\begin{center}
+\begin{minipage}[c]{0.4\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm and 8mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $a$, $b$, $c$};
+\node[proc,below=of r] (m) {$max \gets a$};
+\node[dec,below=of m] (d1) {$b>max$ ?};
+\node[proc,right=of d1,minimum width=14mm] (p1) {$max \gets b$};
+\node[dec,below=7mm of d1] (d2) {$c>max$ ?};
+\node[proc,right=of d2,minimum width=14mm] (p2) {$max \gets c$};
+\node[io,below=7mm of d2] (o) {Print $max$};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(m); \draw[arr](m)--(d1);
+\draw[arr] (d1)--node[above,yes]{yes}(p1); \draw[arr] (d1)--node[right,no]{no}(d2);
+\draw[arr] (p1.south) |- ($(d1.south)!0.5!(d2.north)$);
+\draw[arr] (d2)--node[above,yes]{yes}(p2); \draw[arr] (d2)--node[right,no]{no}(o);
+\draw[arr] (p2.south) |- ($(d2.south)!0.5!(o.north)$);
+\draw[arr] (o)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.56\linewidth}
+The complete program contains both methods (Method~1 as nested \texttt{if} statements) and prints both results, so you can see that they agree:
+\begin{consolebox}[Sample run]
+a = \userin{4}\\ b = \userin{9}\\ c = \userin{7}\\ Method 1 (nested): 9\\ Method 2 (running max): 9
+\end{consolebox}
+\begin{consolebox}[Negative numbers]
+a = \userin{-2}\\ b = \userin{-5}\\ c = \userin{-1}\\ Method 1 (nested): -1\\ Method 2 (running max): -1
+\end{consolebox}
+\end{minipage}
+\end{center}
+\lstinputlisting[caption={\texttt{code/02\_05\_MaxOfThree/Program.cs}}]{../code/02_05_MaxOfThree/Program.cs}
+
+\subsection{Example 6 -- leap year (three nested decisions)}
+Gregorian rule: a year is a leap year if it is divisible by $4$, except century years, which must be divisible by $400$. The chart checks $4$, then $100$, then $400$. The four outcomes join into only two output boxes, placed left (not leap) and right (leap) so that no lines cross.
+\fig{\begin{tikzpicture}[fcp]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $year$};
+\node[dec,below=of r] (d1) {$year \MOD 4 = 0$ ?};
+\node[dec,below=6mm of d1] (d2) {$year \MOD 100 = 0$ ?};
+\node[dec,below=6mm of d2] (d3) {$year \MOD 400 = 0$ ?};
+\node[io] (nl) at ($(d3)+(-4.6,-1.4)$) {Print ``not leap''};
+\node[io] (lp) at ($(d3)+(4.6,-1.4)$) {Print ``leap''};
+\node[term] (e) at ($(d3)+(0,-2.3)$) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(d1);
+\draw[arr] (d1)--node[right,yes]{yes}(d2); \draw[arr] (d2)--node[right,yes]{yes}(d3);
+\draw[arr] (d1.west) -| node[pos=0.2,above,no]{no} (nl.north);
+\draw[arr] (d2.east) -| node[pos=0.2,above,no]{no} (lp.north);
+\draw (d3.east) -- node[above,yes]{yes} (d3 -| lp);
+\draw (d3.west) -- node[above,no]{no} (d3 -| nl);
+\draw[arr] (nl) |- (e); \draw[arr] (lp) |- (e);
+\end{tikzpicture}}
+The same rule as one condition: \quad \textbf{IF} $(year \MOD 4 = 0 \AND year \MOD 100 \ne 0) \OR year \MOD 400 = 0$ \textbf{THEN} leap.
+\begin{center}\small
+\begin{tabular}{cccccc}
+\toprule
+year & $\MOD 4$ & $\MOD 100$ & $\MOD 400$ & path & leap?\\ \midrule
+2024 & 0 & 24 & 24 & yes, no & \textcolor{repc}{yes}\\
+2026 & 2 & 26 & 26 & no & \textcolor{errc}{no}\\
+1900 & 0 & 0 & 300 & yes, yes, no & \textcolor{errc}{no}\\
+2000 & 0 & 0 & 0 & yes, yes, yes & \textcolor{repc}{yes}\\ \bottomrule
+\end{tabular}
+\end{center}
+\lstinputlisting[caption={\texttt{code/02\_06\_LeapYear/Program.cs}}]{../code/02_06_LeapYear/Program.cs}
+\begin{consolebox}[Four runs]
+Year: \userin{2024}\\ 2024 is a leap year\\ Single-condition check: True\\
+Year: \userin{2026}\\ 2026 is not a leap year\\ Single-condition check: False\\
+Year: \userin{1900}\\ 1900 is not a leap year\\ Single-condition check: False\\
+Year: \userin{2000}\\ 2000 is a leap year\\ Single-condition check: True
+\end{consolebox}
+
+\subsection{Example 7 -- the sum $1 + 2 + \dots + N$ (repetition)}\label{ex:sum}
+Week~1's Algorithm~3 as a flowchart. The initialisation $sum \gets 0,\ i \gets 1$ happens \emph{once}, before the point where the back-edge enters. A classic mistake is to draw the back-edge above the initialisation box: then $sum$ and $i$ are reset in every pass and the loop never ends.
+\begin{center}
+\begin{minipage}[c]{0.46\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm and 9mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $N$};
+\node[proc,below=of r] (i) {$sum \gets 0,\ i \gets 1$};
+\node[dec,below=6mm of i] (d) {$i \le N$ ?};
+\node[proc,below=of d] (b1) {$sum \gets sum + i$};
+\node[proc,below=of b1] (b2) {$i \gets i+1$};
+\node[io,right=of d] (o) {Print $sum$};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(i); \draw[arr](i)--(d);
+\draw[arr] (d)--node[right,yes]{yes}(b1); \draw[arr](b1)--(b2);
+\draw[arr] (b2.south) -- ++(0,-4mm) -| ([xshift=-7mm]d.west) |- ($(i.south)!0.5!(d.north)$);
+\draw[arr] (d)--node[above,no]{no}(o); \draw[arr](o)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.5\linewidth}
+\begin{consolebox}[Three runs]
+N = \userin{100}\\ Sum 1..100 = 5050\\
+N = \userin{5}\\ Sum 1..5 = 15\\
+N = \userin{0}\\ Sum 1..0 = 0
+\end{consolebox}
+\raggedright The results agree with Gauss's formula $N(N+1)/2$: $100\cdot101/2 = 5050$ and $5\cdot 6/2 = 15$. For $N=0$ the body never runs (pre-test loop), so the sum stays $0$. The full trace for $N=5$ is in the Week~1 notes.
+\end{minipage}
+\end{center}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_07\_SumToN/Program.cs}}]{../code/02_07_SumToN/Program.cs}
+
+\subsection{Example 8 -- factorial $N!$}
+$N! = 1 \times 2 \times \dots \times N$, with $0! = 1$ by definition. The chart has exactly the shape of the sum; only two things change: the accumulator starts at $1$ (the neutral element of multiplication -- starting at $0$ would always give $0$) and the body multiplies.
+\begin{center}
+\begin{minipage}[c]{0.54\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm and 6mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $N$};
+\node[proc,below=of r] (i) {$factorial \gets 1,\ i \gets 1$};
+\node[dec,below=6mm of i] (d) {$i \le N$ ?};
+\node[proc,below=of d] (b1) {$factorial \gets factorial \times i$};
+\node[proc,below=of b1] (b2) {$i \gets i+1$};
+\node[io,right=10mm of d] (o) {Print $factorial$};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(i); \draw[arr](i)--(d);
+\draw[arr] (d)--node[right,yes]{yes}(b1); \draw[arr](b1)--(b2);
+\draw[arr] (b2.south) -- ++(0,-4mm) -| ([xshift=-5mm]b1.west) |- ($(i.south)!0.5!(d.north)$);
+\draw[arr] (d)--node[above,no]{no}(o); \draw[arr](o)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.42\linewidth}
+\begin{consolebox}[Three runs]
+N = \userin{5}\\ 5! = 120\\
+N = \userin{20}\\ 20! = 2432902008176640000\\
+N = \userin{0}\\ 0! = 1
+\end{consolebox}
+\end{minipage}
+\end{center}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_08\_Factorial/Program.cs}}]{../code/02_08_Factorial/Program.cs}
+\begin{notebox}[Why \texttt{long}?]
+Factorials grow very fast. The C\# type \texttt{int} holds values up to $2\,147\,483\,647$, so $12! = 479\,001\,600$ fits but $13! = 6\,227\,020\,800$ does not. The program therefore uses \texttt{long} (up to about $9.22\times10^{18}$), which holds $20! = 2\,432\,902\,008\,176\,640\,000$. $21! \approx 5.1 \times 10^{19}$ overflows even \texttt{long} -- more on this in Week~6.
+\end{notebox}
+
+\subsection{Example 9 -- Euclid's greatest common divisor}
+Week~1's Algorithm~5. This loop is not controlled by a counter: it stops because $b$ strictly decreases ($0 \le a \MOD b < b$) and must reach $0$. The order of the three body boxes matters: if $b \gets r$ came before $a \gets b$, both variables would end up equal to $r$.
+\begin{center}
+\begin{minipage}[c]{0.44\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=4mm and 9mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $a$, $b$};
+\node[dec,below=6mm of r] (d) {$b \ne 0$ ?};
+\node[proc,below=of d] (b1) {$r \gets a \MOD b$};
+\node[proc,below=of b1] (b2) {$a \gets b$};
+\node[proc,below=of b2] (b3) {$b \gets r$};
+\node[io,right=of d] (o) {Print $a$};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(d);
+\draw[arr] (d)--node[right,yes]{yes}(b1); \draw[arr](b1)--(b2); \draw[arr](b2)--(b3);
+\draw[arr] (b3.south) -- ++(0,-4mm) -| ([xshift=-7mm]d.west) |- ($(r.south)!0.5!(d.north)$);
+\draw[arr] (d)--node[above,no]{no}(o); \draw[arr](o)--(e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.52\linewidth}\centering\small
+\begin{tabular}{cccc}
+\toprule
+$a$ & $b$ & $b \ne 0$? & $r = a \MOD b$\\ \midrule
+48 & 18 & yes & 12\\
+18 & 12 & yes & 6\\
+12 & 6 & yes & 0\\
+6 & 0 & \textcolor{errc}{no} & -- \quad(print 6)\\ \bottomrule
+\end{tabular}
+\begin{consolebox}[Sample run]
+a = \userin{48}\\ b = \userin{18}\\ GCD = 6
+\end{consolebox}
+\end{minipage}
+\end{center}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_09\_EuclidGcd/Program.cs}}]{../code/02_09_EuclidGcd/Program.cs}
+If $a < b$, the first pass swaps them automatically: for $(18, 48)$ the first remainder is $18 \MOD 48 = 18$, giving $a=48$, $b=18$, and the program also prints $6$.
+
+\subsection{Example 10 -- guess the number (a decision inside a loop)}
+The computer holds a secret number; the user guesses until correct and gets the hint ``Higher!'' or ``Lower!'' after every wrong guess. Here a two-way decision (the hint) is \emph{nested inside} the loop controlled by ``$guess = secret$?''. Both hint boxes return to the same input box. In our version the secret is fixed to $37$ so that every run is reproducible; in Week~7 it becomes a random number.
+\fig{\begin{tikzpicture}[fcp]
+\node[term] (s) {Start};
+\node[proc,below=of s] (i) {$secret \gets 37$};
+\node[io,below=7mm of i] (r) {Read $guess$};
+\node[dec,below=of r] (d1) {$guess = secret$ ?};
+\node[dec,right=10mm of d1] (d2) {$guess < secret$ ?};
+\node[io,below=7mm of d2] (hi) {Print ``Higher!''};
+\node[io,right=6mm of hi] (lo) {Print ``Lower!''};
+\node[io,below=7mm of d1] (ok) {Print ``Correct!''};
+\node[term,below=of ok] (e) {End};
+\draw[arr] (s)--(i); \draw[arr](i)--(r); \draw[arr](r)--(d1);
+\draw[arr] (d1)--node[above,no]{no}(d2);
+\draw[arr] (d1)--node[right,yes]{yes}(ok); \draw[arr](ok)--(e);
+\draw[arr] (d2)--node[right,yes]{yes}(hi);
+\draw[arr] (d2.east) -| node[pos=0.25,above,no]{no} (lo.north);
+\coordinate (xb) at ([xshift=6mm]lo.east);
+\draw (hi.south) -- ++(0,-4mm) coordinate (h1) -- (h1 -| xb);
+\draw[arr] (lo.south) |- (h1 -| xb) -- (xb |- r) -- (r.east);
+\end{tikzpicture}}
+\needspace{14\baselineskip}\lstinputlisting[caption={\texttt{code/02\_10\_GuessNumber/Program.cs}}]{../code/02_10_GuessNumber/Program.cs}
+\begin{consolebox}[Sample run]
+Your guess: \userin{50}\\ Lower!\\ Your guess: \userin{25}\\ Higher!\\ Your guess: \userin{37}\\ Correct!
+\end{consolebox}
+Two details of the translation are worth noticing. (1) The input box is entered from two places (from above and from the back-edge), so in this C\# version \texttt{ReadLine} appears twice: once before \texttt{while} and once at the end of the loop body. (2) The chart leaves the loop on ``yes'' to $guess = secret$; the C\# loop \emph{continues} while \texttt{guess != secret}. ``Exit when $X$'' in a chart becomes ``while \textbf{NOT} $X$'' in code.
+
+\subsection{Example 11 -- ATM withdrawal}
+Week~1's exercise~C. The first decision validates the amount (positive and a multiple of 10), the second checks the balance. The two error messages join the main path at End. The C\# version follows in Week~5.
+\begin{center}
+\begin{minipage}[c]{0.51\linewidth}\centering
+\begin{tikzpicture}[fcp,node distance=5mm and 5mm]
+\node[term] (s) {Start};
+\node[io,below=of s,font=\sffamily\scriptsize] (r) {Read $balance$, $amount$};
+\node[dec,below=of r,align=center,font=\sffamily\scriptsize] (d1) {$amount > 0$ \textbf{AND}\\ $amount \MOD 10 = 0$ ?};
+\node[dec,below=6mm of d1,font=\sffamily\scriptsize] (d2) {$amount \le balance$ ?};
+\node[proc,below=of d2,font=\sffamily\scriptsize] (p) {$balance \gets balance - amount$};
+\node[io,below=of p] (o) {Print $balance$};
+\node[term,below=of o] (e) {End};
+\node[io,right=of d1,font=\sffamily\scriptsize,minimum width=18mm] (x1) {Print ``invalid''};
+\node[io,font=\sffamily\scriptsize,minimum width=18mm] (x2) at (x1 |- d2) {Print ``no funds''};
+\draw[arr] (s)--(r); \draw[arr](r)--(d1);
+\draw[arr] (d1)--node[right,yes]{yes}(d2); \draw[arr] (d1)--node[above,no]{no}(x1);
+\draw[arr] (d2)--node[above,no]{no}(x2); \draw[arr] (d2)--node[right,yes]{yes}(p);
+\draw[arr] (p)--(o); \draw[arr](o)--(e);
+\coordinate (j) at ([xshift=5mm]x2.east);
+\draw (x1.east) -| (j |- e); \draw (x2.east) -- (j |- x2);
+\draw[arr] (j |- e) -- (e);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.47\linewidth}
+\begin{pseudobox}[Algorithm 3 -- ATM withdrawal]
+\begin{algorithmic}[1]
+\START
+\State \READ $balance$, $amount$
+\IfX{$amount > 0$ \AND $amount \MOD 10 = 0$}
+  \IfX{$amount \le balance$}
+    \State $balance \gets balance - amount$
+    \State \PRINT $balance$
+  \ElseX
+    \State \PRINT \str{no funds}
+  \EndIfX
+\ElseX
+  \State \PRINT \str{invalid}
+\EndIfX
+\STOP
+\end{algorithmic}
+\end{pseudobox}
+\end{minipage}
+\end{center}
+\begin{center}\small
+\begin{tabular}{lll}
+\toprule
+$balance, amount$ & expected output & what it tests\\ \midrule
+$500, 200$ & 300 & normal withdrawal\\
+$500, 500$ & 0 & boundary: the whole balance\\
+$500, 510$ & no funds & not enough money\\
+$500, 25$ & invalid & not a multiple of 10\\
+$500, -10$ & invalid & negative amount\\ \bottomrule
+\end{tabular}
+\end{center}
+
+% =====================================================================
+\section{Common mistakes and self-checks}\label{sec:mistakes}
+\begin{warnbox}[Four flowchart bugs]
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item \textbf{A decision with one exit.} ``$x>0$ ?'' with only a ``yes'' arrow: what happens when $x \le 0$? Every diamond needs two labelled exits.
+  \item \textbf{Missing End / dead end.} A path that stops in the middle of the page. Every path must reach the (single) End terminal.
+  \item \textbf{Loop without update.} ``$i \le N$ ?'' $\to$ ``$sum \gets sum + i$'' $\to$ back, but nothing changes $i$: the condition stays true forever. Add $i \gets i+1$. In C\# such a program hangs and must be stopped with \texttt{Ctrl+C}.
+  \item \textbf{Ambiguous text.} ``get the numbers'', ``calculate it''. Write exactly what happens: ``Read $a$, $b$'', ``$sum \gets a + b$'' (Week~1: \emph{definiteness}).
+\end{enumerate}
+Other frequent errors: missing arrowheads; exits without yes/no labels; a READ and a calculation in one box; the back-edge of a loop drawn above the initialisation box; branches of an IF that never join again.
+\end{warnbox}
+
+\subsection{Predict the output}
+What does the following flowchart print for $n = 6$? \quad (A)~21 \quad (B)~12 \quad (C)~9 \quad (D)~nothing, it never stops.
+\fig{\begin{tikzpicture}[fcp,node distance=4.5mm and 9mm]
+\node[term] (s) {Start};
+\node[io,below=of s] (r) {Read $n$};
+\node[proc,below=of r] (i) {$s \gets 0,\ k \gets 1$};
+\node[dec,below=7mm of i] (d1) {$k \le n$ ?};
+\node[dec,below=of d1] (d2) {$k \MOD 2 = 0$ ?};
+\node[proc,right=7mm of d2] (p) {$s \gets s + k$};
+\node[proc,below=7mm of d2] (q) {$k \gets k+1$};
+\node[io,right=42mm of d1] (o) {Print $s$};
+\node[term,below=of o] (e) {End};
+\draw[arr] (s)--(r); \draw[arr](r)--(i); \draw[arr](i)--(d1);
+\draw[arr] (d1)--node[right,yes]{yes}(d2);
+\draw[arr] (d2)--node[above,yes]{yes}(p);
+\draw[arr] (d2)--node[right,no]{no}(q);
+\draw[arr] (p.south) |- ($(d2.south)!0.5!(q.north)$);
+\draw[arr] (q.south) -- ++(0,-4mm) -| ([xshift=-7mm]d2.west) |- ($(i.south)!0.5!(d1.north)$);
+\draw[arr] (d1)--node[above,no]{no}(o); \draw[arr](o)--(e);
+\end{tikzpicture}}
+\solution{Answer (B) $12$. Only even values of $k$ reach the box $s \gets s+k$:
+\begin{center}\small
+\begin{tabular}{cccc}
+\toprule
+$k$ & $k\le n$? & $k \MOD 2 = 0$? & $s$\\ \midrule
+1 & yes & no & 0\\ 2 & yes & yes & 2\\ 3 & yes & no & 2\\ 4 & yes & yes & 6\\ 5 & yes & no & 6\\ 6 & yes & yes & 12\\ 7 & no & -- & print 12\\ \bottomrule
+\end{tabular}
+\end{center}
+The chart adds the even numbers from 1 to $n$. The common wrong answer 21 ignores the inner decision; 9 ($=1+3+5$) swaps its yes/no exits.}
+
+% =====================================================================
+\section{Tools for drawing flowcharts}\label{sec:tools}
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Pen and paper.} Exams are written on paper. Use a pencil and eraser, draw the main path first, and leave generous space between boxes for the branches.
+  \item \textbf{draw.io / diagrams.net.} Free, runs in the browser (\url{https://app.diagrams.net/}) or as a desktop app; it has a \emph{Flowchart} shape library and exports PNG and PDF.
+  \item \textbf{Flowgorithm.} Free (Windows). You draw the flowchart and then \emph{run} it step by step while a watch window shows the variables; its source-code viewer shows the same chart in many programming languages, including C\#. Flowgorithm adds its own ``Declare'' shape, because every variable must be declared with a type -- a preview of Week~3.
+  \item \textbf{Mermaid.} A text-to-diagram language: you write the chart as text and get the picture. GitHub and GitLab render it inside Markdown files; \url{https://mermaid.live} shows a live preview. The absolute-value chart of Example~2:
+\end{itemize}
+\needspace{9\baselineskip}
+\begin{lstlisting}[language={},numbers=none]
+flowchart TD
+  A([Start]) --> B[/Read x/]
+  B --> C{"x < 0 ?"}
+  C -- yes --> D["x ← −x"]
+  C -- no --> E[/Print x/]
+  D --> E
+  E --> F([End])
+\end{lstlisting}
+
+% =====================================================================
+\needspace{12\baselineskip}
+\section{Summary}\label{sec:summary}
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item A \term{flowchart} is a picture of an algorithm: shapes are kinds of steps, arrows give the order.
+  \item Six basic symbols (ISO~5807): terminal, input/output, process, decision, predefined process, connector; plus flow lines and annotations.
+  \item Rules: one Start and one End; two labelled exits per decision; arrows on every line; no crossings; precise text; loops must make progress.
+  \item Sequence, selection and repetition each have a pattern with one entry and one exit, so patterns can be nested. An upward arrow (back-edge) means a loop.
+  \item Converting: one box $\approx$ one pseudocode line; a diamond whose paths join again is an IF; a diamond with a back-edge is a WHILE.
+  \item Trace tables test a flowchart before any code exists; choose tests that visit every path and every boundary.
+\end{enumerate}
+
+\subsection*{Glossary (English -- Turkish)}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{30mm}L>{\raggedright\arraybackslash}p{30mm}L}
+\toprule
+flowchart & akış şeması & flow line & akış çizgisi\\
+symbol & sembol, simge & arrow / arrowhead & ok / ok ucu\\
+terminal (start/end) & başla/bitir simgesi & connector & bağlantı (bağlayıcı) simgesi\\
+input / output & girdi / çıktı & off-page connector & sayfa dışı bağlantı\\
+process & işlem & annotation & açıklama (not)\\
+decision & karar & predefined process & önceden tanımlı işlem (alt program)\\
+sequence & sıralı yapı & nested & iç içe\\
+selection & seçim (karar) yapısı & back-edge & geri dönüş oku\\
+repetition / loop & tekrar / döngü & infinite loop & sonsuz döngü\\
+pre-test loop & ön koşullu döngü & post-test loop & son koşullu döngü\\
+trace table & izleme tablosu & boundary value & sınır değer\\
+counter & sayaç & accumulator & biriktirici (toplam) değişken\\
+leap year & artık yıl & factorial & faktöriyel\\
+remainder (mod) & kalan (mod) & greatest common divisor & en büyük ortak bölen (EBOB)\\ \bottomrule
+\end{tabularx}
+\end{center}
+
+% =====================================================================
+\section{Exercises}\label{sec:exercises}
+For every exercise: draw the flowchart following the eight rules of Section~\ref{sec:rules}, write the matching pseudocode, and trace it with at least one normal and one edge-case input.
+
+\subsection{In-class exercises (pairs, 30 minutes)}
+\begin{enumerate}[label=\textbf{\Alph*.},leftmargin=*,itemsep=3pt]
+  \item \stars{1} \textbf{Celsius $\to$ Fahrenheit.} Read $C$; print $F = C \times 9/5 + 32$.
+  \solution{Sequence only.
+  \begin{center}\begin{tikzpicture}[fcp,node distance=7mm]
+  \node[term] (s) {Start}; \node[io,right=of s] (r) {Read $C$}; \node[proc,right=of r] (p) {$F \gets C \times 9/5 + 32$};
+  \node[io,right=of p] (o) {Print $F$}; \node[term,right=of o] (e) {End};
+  \draw[arr](s)--(r); \draw[arr](r)--(p); \draw[arr](p)--(o); \draw[arr](o)--(e);
+  \end{tikzpicture}\end{center}
+  Tests: $0 \to 32$, $100 \to 212$, $37 \to 98.6$, $-40 \to -40$ (the two scales meet at $-40$). (A chart may also be drawn left to right, as here, when it is short.)}
+
+  \item \stars{1} \textbf{Larger of two.} Read $a$ and $b$; print the larger one, or ``equal'' if they are the same.
+  \solution{
+  \begin{algorithmic}[1]
+  \START \State \READ $a$, $b$
+  \IfX{$a > b$} \State \PRINT $a$
+  \ElseX \IfX{$b > a$} \State \PRINT $b$ \ElseX \State \PRINT \str{equal} \EndIfX \EndIfX \STOP
+  \end{algorithmic}
+  The flowchart has the same shape as ``sign of a number'' (Section~\ref{sec:conv2}): the second diamond sits on the ``no'' exit of the first. Tests: $(7,3)\to7$, $(2,9)\to9$, $(5,5)\to$ equal.}
+
+  \item \stars{2} \textbf{Ticket price.} Read an age. Children under 12 pay 50~TL, people aged 65 or over pay 60~TL, everybody else pays 100~TL.
+  \solution{
+  \begin{algorithmic}[1]
+  \START \State \READ $age$
+  \IfX{$age < 12$} \State $price \gets 50$
+  \ElseX \IfX{$age \ge 65$} \State $price \gets 60$ \ElseX \State $price \gets 100$ \EndIfX \EndIfX
+  \State \PRINT $price$ \STOP
+  \end{algorithmic}
+  Boundary tests: $11 \to 50$, $12 \to 100$, $64 \to 100$, $65 \to 60$. Using a variable $price$ and a single output box keeps the chart small: the three process boxes join before one ``Print $price$''.}
+
+  \item \stars{1} \textbf{Multiplication table.} Read $n$; print $n\times1, n\times2, \dots, n\times10$, one per line.
+  \solution{
+  \begin{algorithmic}[1]
+  \START \State \READ $n$ \State $i \gets 1$
+  \WhileX{$i \le 10$} \State \PRINT $n$, \str{x}, $i$, \str{=}, $n \times i$ \State $i \gets i + 1$ \EndWhileX \STOP
+  \end{algorithmic}
+  Flowchart: the counting-loop pattern of Example~7 (Section~\ref{ex:sum}) with the body ``Print \dots'' and ``$i \gets i+1$''. Test $n = 7$: $7, 14, \dots, 70$ (10 lines).}
+
+  \item \stars{2} \textbf{Average of $N$ numbers.} Read $N$, then $N$ numbers one by one; print their average.
+  \solution{
+  \begin{algorithmic}[1]
+  \START \State \READ $N$ \State $sum \gets 0$ \State $i \gets 1$
+  \WhileX{$i \le N$} \State \READ $x$ \State $sum \gets sum + x$ \State $i \gets i + 1$ \EndWhileX
+  \IfX{$N > 0$} \State \PRINT $sum / N$ \ElseX \State \PRINT \str{no numbers} \EndIfX \STOP
+  \end{algorithmic}
+  $i$ is a \term{counter}, $sum$ an \term{accumulator}. Test $N=3$ with $4, 8, 9$: $sum = 21$, average $7$. The decision after the loop avoids a division by zero for $N=0$.}
+
+  \item \stars{2} \textbf{Guess the number with a counter.} Extend Example~10 so that it also prints how many guesses were needed.
+  \solution{Add two process boxes: $count \gets 0$ next to $secret \gets 37$ (before the loop) and $count \gets count + 1$ directly after ``Read $guess$'' (inside the loop, so that it is on the back-edge path). Change the final output box to \PRINT \str{Correct after}, $count$, \str{guesses}. Trace with $50, 25, 37$: $count = 1, 2, 3$, output ``Correct after 3 guesses''. Placing $count \gets 0$ inside the loop would be a bug: the counter would be reset at every guess.}
+\end{enumerate}
+
+\subsection{Homework (due before Week 3)}
+\begin{enumerate}[label=\textbf{H\arabic*.},leftmargin=*,itemsep=3pt]
+  \item \stars{1} Draw flowcharts for Week~1 exercises A (even/odd), B (leap year -- use your own layout; do not copy Example~6) and F (Celsius $\to$ Fahrenheit).
+  \solution{A: Example~3. B: any correct layout, e.g.\ a single diamond with the combined condition $(year \MOD 4 = 0 \AND year \MOD 100 \ne 0) \OR year \MOD 400 = 0$, or three nested diamonds in a different order (check $400$ first, then $100$, then $4$). Test with 2024, 2026, 1900, 2000. F: in-class exercise~A.}
+  \item \stars{1} Trace the GCD flowchart (Example~9) for $(84, 36)$ and for $(17, 5)$ in trace tables.
+  \solution{$(84,36)$: rows $(84,36,12)$, $(36,12,0)$, then $b=0$: output $12$. \quad $(17,5)$: rows $(17,5,2)$, $(5,2,1)$, $(2,1,0)$, then $b=0$: output $1$ ($17$ and $5$ are coprime).}
+  \item \stars{2} Draw the flowchart of in-class exercise~F (guess the number with a counter).
+  \solution{See the solution of exercise~F.}
+  \item \stars{1} Open the \texttt{code/} folder and run \texttt{02\_07\_SumToN} and \texttt{02\_10\_GuessNumber} with \texttt{dotnet run}. For each run, follow the path through the flowchart with your finger.
+  \solution{For $N = 10$ the program prints \texttt{Sum 1..10 = 55} ($=10\cdot11/2$).}
+\end{enumerate}
+
+\subsection{Extra practice}
+\begin{enumerate}[label=\textbf{P\arabic*.},leftmargin=*,itemsep=3pt]
+  \item \stars{1} \textbf{Shopping total with VAT.} Read a unit price and a quantity; print the total including 20\,\% VAT (KDV).
+  \solution{Sequence: Read $price$, $quantity$ $\to$ $total \gets price \times quantity \times 1.20$ $\to$ Print $total$. Test $50, 3 \to 180$.}
+  \item \stars{1} \textbf{Find the errors.} A student's chart is: Start $\to$ ``Read $x$ and double it'' $\to$ diamond ``$x > 10$ ?'' with a single arrow labelled yes to ``Print \emph{big}''. List every rule that is broken.
+  \solution{(1) Input and calculation in one box (rule 8): split into ``Read $x$'' and ``$x \gets 2 \times x$''. (2) The decision has only one exit (rule 3): add a ``no'' path, e.g.\ to ``Print \emph{small}''. (3) There is no End (rule 1): both paths must join and reach End.}
+  \item \stars{2} \textbf{Pseudocode $\to$ flowchart.} Draw the flowchart of the algorithm below and trace it for $n = 4071$. What does it compute? What does it print for $n = 0$, and is that what we want?
+  \begin{algorithmic}[1]
+  \START \State \READ $n$ \State $count \gets 0$
+  \WhileX{$n > 0$} \State $n \gets \lfloor n / 10 \rfloor$ \State $count \gets count + 1$ \EndWhileX
+  \State \PRINT $count$ \STOP
+  \end{algorithmic}
+  \solution{Counting-loop pattern with the diamond $n > 0$. Trace: $(n, count) = (4071, 0) \to (407, 1) \to (40, 2) \to (4, 3) \to (0, 4)$; output $4$. It counts the digits of a positive integer. For $n=0$ it prints $0$, although $0$ has one digit: an edge case that needs a special rule (or a post-test loop, Week~7).}
+  \item \stars{2} Trace the mystery chart of Section~\ref{sec:trace} for $n = 1000$ and for $n = 1$.
+  \solution{$n=1000$: $p = 1, 2, 4, \dots, 512, 1024$; $k = 10$; output $10$. \quad $n = 1$: $1 < 1$ is false at once; output $0$.}
+  \item \stars{2} For the ``predict the output'' chart of Section~\ref{sec:mistakes}, what is printed for $n = 10$? How many times is the condition $k \le n$ evaluated?
+  \solution{$2 + 4 + 6 + 8 + 10 = 30$. The condition is evaluated $11$ times ($k = 1, \dots, 10$ true, $k = 11$ false).}
+  \item \stars{2} \textbf{Minimum of three.} Draw the running-minimum version of Example~5 (Method~2).
+  \solution{Same chart as Method~2 with $min$ instead of $max$ and the conditions $b < min$, $c < min$. Tests: $(4,9,7)\to4$, $(8,3,8)\to3$, $(-2,-5,-1)\to-5$.}
+  \item \stars{3} \textbf{Largest of $N$ numbers.} Read $N \ge 1$ and then $N$ numbers; print the largest. Combine a counting loop with the running maximum.
+  \solution{
+  \begin{algorithmic}[1]
+  \START \State \READ $N$ \State \READ $x$ \State $max \gets x$ \State $i \gets 2$
+  \WhileX{$i \le N$} \State \READ $x$ \IfX{$x > max$} \State $max \gets x$ \EndIfX \State $i \gets i + 1$ \EndWhileX
+  \State \PRINT $max$ \STOP
+  \end{algorithmic}
+  In the flowchart the IF--THEN pattern sits inside the loop body, between ``Read $x$'' and ``$i \gets i+1$''.}
+  \item \stars{3} \textbf{Power.} Read a number $b$ and an integer $e \ge 0$; compute $b^{e}$ by repeated multiplication (no power operator). Trace $2^{10}$ and $5^{0}$.
+  \solution{Factorial pattern: $result \gets 1,\ i \gets 1$; \textbf{WHILE} $i \le e$: $result \gets result \times b$, $i \gets i + 1$. $2^{10} = 1024$ after 10 passes; $5^{0} = 1$ because the body never runs.}
+\end{enumerate}
+
+% =====================================================================
+\section*{References and further reading}
+\addcontentsline{toc}{section}{References and further reading}
+\begin{enumerate}[label={[\arabic*]},leftmargin=*,itemsep=1pt,font=\small]\small\raggedright
+  \item ISO 5807:1985, \emph{Information processing -- Documentation symbols and conventions for data, program and system flowcharts, program network charts and system resources charts}. \url{https://www.iso.org/standard/11955.html}
+  \item F.\,B. Gilbreth and L.\,M. Gilbreth, ``Process Charts'', \emph{Transactions of the ASME} 43, 1921.
+  \item H.\,H. Goldstine and J. von Neumann, \emph{Planning and Coding of Problems for an Electronic Computing Instrument}, Institute for Advanced Study, 1947.
+  \item C. Böhm and G. Jacopini, ``Flow diagrams, Turing machines and languages with only two formation rules'', \emph{Communications of the ACM} 9(5), 366--371, 1966. \url{https://doi.org/10.1145/355592.365646}
+  \item Flowgorithm -- free beginner's programming language based on flowcharts. \url{http://www.flowgorithm.org/}
+  \item diagrams.net (draw.io) -- online diagram editor. \url{https://app.diagrams.net/}
+  \item Mermaid -- flowchart syntax. \url{https://mermaid.js.org/syntax/flowchart.html}
+  \item Microsoft, \emph{C\# selection statements: if, if-else and switch}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/selection-statements}
+  \item Microsoft, \emph{C\# iteration statements: for, foreach, do and while}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/iteration-statements}
+  \item Microsoft, \emph{Top-level statements -- programs without Main methods}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements}
+  \item Microsoft, \emph{Arithmetic operators -- remainder operator \%}. \url{https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/arithmetic-operators}
+\end{enumerate}
+
+\end{document}
